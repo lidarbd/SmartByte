@@ -1,4 +1,4 @@
-# SmartByte Home Assignment
+# SmartByte
 
 This repository contains a full-stack application for SmartByte:
 - **Backend:** FastAPI (Python)
