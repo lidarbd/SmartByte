@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
+from db.database import init_db
 
 # יצירת אפליקציית FastAPI
 app = FastAPI(
@@ -9,7 +10,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# הגדרת CORS (כדי שה-Frontend יוכל לדבר עם ה-Backend)
+# הגדרת CORS כדי לאפשר קריאות מהפרונטאנד
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],  # Frontend URL
@@ -17,6 +18,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    פונקציה שרצה פעם אחת כשהשרת עולה.
+    כאן אנחנו יוצרים את הטבלאות במסד הנתונים אם הן לא קיימות.
+    """
+    print("🚀 Starting SmartByte API...")
+    init_db()
+    print("✅ Application startup complete")
 
 
 @app.get("/")
@@ -26,7 +37,8 @@ def root():
     """
     return {
         "message": "SmartByte API is running!",
-        "llm_provider": settings.LLM_PROVIDER
+        "llm_provider": settings.LLM_PROVIDER,
+        "database_url": settings.DATABASE_URL
     }
 
 

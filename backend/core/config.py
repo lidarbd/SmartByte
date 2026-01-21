@@ -1,10 +1,9 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 
-
 class Settings(BaseSettings):
     # LLM Settings
-    LLM_PROVIDER: str = "openai"  # openai | local
+    LLM_PROVIDER: str = "openai"  
     OPENAI_API_KEY: Optional[str] = None
     
     # Database
