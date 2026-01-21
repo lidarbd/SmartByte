@@ -1,0 +1,44 @@
+version: '3.8'
+
+# כאן אנחנו מגדירים את כל ה"שירותים" (קונטיינרים) בפרויקט
+services:
+  # השירות הראשון שלנו - ה-backend
+  backend:
+    # בונים את הקונטיינר מתוך ה-Dockerfile שיצרנו
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    
+    # שם יפה לקונטיינר (אופציונלי, אבל נוח)
+    container_name: smartbyte-backend
+    
+    # אם הקונטיינר קורס, הרם אותו שוב
+    restart: unless-stopped
+    
+    # מיפוי פורטים: פורט במחשב שלך:פורט בקונטיינר
+    # כלומר, http://localhost:8000 יכנס לפורט 8000 של הקונטיינר
+    ports:
+      - "8000:8000"
+    
+    env_file:
+      - .env
+    
+    # משתני סביבה שצריכים להגיע לקונטיינר
+    environment:
+      - LLM_PROVIDER=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./smartbyte.db}
+    
+    # חיבור תיקייה מהמחשב שלך לקונטיינר
+    # זה אומר שכל שינוי בקוד יתעדכן מיד בקונטיינר (נוח לפיתוח)
+    volumes:
+      - ./backend:/app
+    
+    # הרצה במצב פיתוח עם reload אוטומטי
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # בעתיד נוסיף כאן:
+  # frontend:
+  #   ...
+  # database:
+  #   ...
