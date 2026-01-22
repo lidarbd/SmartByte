@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # LLM Settings
-    LLM_PROVIDER: str = "local"  # Options: "openai", "local"
+    LLM_PROVIDER: str = "openai"  # Options: "openai", "local"
     OPENAI_API_KEY: Optional[str] = None
     
     # Database
