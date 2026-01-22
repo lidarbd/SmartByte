@@ -13,7 +13,7 @@ Usage:
 from .base import LLMProvider, LLMProviderError
 from .openai_provider import OpenAIProvider
 from .local_provider import LocalProvider
-from core.config import settings
+from backend.core.config import settings
 
 
 def get_llm_provider() -> LLMProvider:
