@@ -25,9 +25,9 @@ async def startup_event():
     פונקציה שרצה פעם אחת כשהשרת עולה.
     כאן אנחנו יוצרים את הטבלאות במסד הנתונים אם הן לא קיימות.
     """
-    print("🚀 Starting SmartByte API...")
+    print("Starting SmartByte API...")
     init_db()
-    print("✅ Application startup complete")
+    print("Application startup complete")
 
 
 @app.get("/")
