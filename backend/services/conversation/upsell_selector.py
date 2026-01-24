@@ -13,8 +13,8 @@ Upsell rules:
 from typing import Optional, List
 from sqlalchemy.orm import Session
 
-from backend.db.conversation.models import Product
-from backend.db.conversation.repositories import ProductRepository
+from db.conversation.models import Product
+from db.conversation.repositories import ProductRepository
 
 
 class UpsellSelector:

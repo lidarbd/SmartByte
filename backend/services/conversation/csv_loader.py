@@ -8,7 +8,7 @@ import csv
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 
-from backend.db.conversation.repositories import ProductRepository
+from db.conversation.repositories import ProductRepository
 from .exceptions import CSVParsingError
 
 

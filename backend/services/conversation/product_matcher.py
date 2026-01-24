@@ -11,8 +11,8 @@ import re
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
-from backend.db.conversation.models import Product
-from backend.db.conversation.repositories import ProductRepository
+from db.conversation.models import Product
+from db.conversation.repositories import ProductRepository
 
 
 class ProductMatcher:

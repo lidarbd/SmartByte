@@ -16,14 +16,14 @@ import re
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 
-from backend.db.conversation.models import Product, ChatSession
-from backend.db.conversation.repositories import (
+from db.conversation.models import Product, ChatSession
+from db.conversation.repositories import (
     ProductRepository,
     ChatSessionRepository,
     ChatMessageRepository,
     RecommendationRepository
 )
-from backend.llm import get_llm_provider, LLMProviderError
+from llm import get_llm_provider, LLMProviderError
 
 from .customer_identifier import CustomerIdentifier, CustomerType
 from .product_matcher import ProductMatcher
