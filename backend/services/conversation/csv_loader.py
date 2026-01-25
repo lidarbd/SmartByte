@@ -6,7 +6,7 @@ Handles loading products from CSV files into the database.
 
 import csv
 import io
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from db.conversation.repositories import ProductRepository
@@ -291,3 +291,4 @@ class CSVLoader:
             parts.append(f"GPU: {specs['gpu']}")
         
         return " | ".join(parts)
+    

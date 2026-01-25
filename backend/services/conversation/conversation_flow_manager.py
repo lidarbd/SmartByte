@@ -70,15 +70,6 @@ class ConversationFlowManager:
                 "is_product_inquiry": True,
                 "needs_clarification": True
             }
-        
-        Example usage:
-            flow = ConversationFlowManager()
-            state = flow.analyze_conversation_state(
-                current_message="I need a computer",
-                conversation_history=[],
-                identified_customer_type=None
-            )
-            # Returns: stage=UNDERSTANDING_NEEDS, missing_info=['use_case', 'budget', 'product_type']
         """
         # Extract all user messages
         user_messages = [msg['content'] for msg in conversation_history if msg['role'] == 'user']
@@ -106,7 +97,7 @@ class ConversationFlowManager:
         missing_info = self._identify_missing_info(extracted_info)
         
         # Determine conversation stage
-        stage = self._determine_stage(extracted_info, conversation_history, identified_customer_type)
+        stage = self._determine_stage(extracted_info, conversation_history)
         
         # Generate appropriate question if needed
         suggested_question = None
@@ -190,31 +181,35 @@ class ConversationFlowManager:
         
         # Extract use case
         use_case_patterns = {
-            'student': ['student', 'university', 'college', 'study', 'homework', 'סטודנט', 'לימודים'],
-            'gaming': ['gaming', 'gamer', 'games', 'fps', 'fortnite', 'גיימר', 'משחקים'],
-            'work': ['work', 'office', 'business', 'professional', 'עבודה', 'משרד'],
-            'development': ['developer', 'programming', 'coding', 'engineer', 'מפתח', 'תכנות', 'מהנדס']
+            'student': ['student', 'university', 'college', 'study', 'homework', 'סטודנט', 'לימודים', 'אוניברסיטה', 'מכללה'],
+            'gaming': ['gaming', 'gamer', 'games', 'fps', 'fortnite', 'גיימר', 'משחקים', 'גיימינג'],
+            'work':   ['work', 'office', 'business', 'professional', 'עבודה', 'משרד', 'עסק', 'זום', 'פגישות'],
+            'development': ['developer', 'programming', 'coding', 'engineer', 'מפתח', 'תכנות', 'מהנדס', 'פיתוח', 'דוקר', 'docker']
         }
         
         for use_case, keywords in use_case_patterns.items():
             if any(kw in text for kw in keywords):
                 info['has_use_case'] = True
                 info['use_case_keywords'].append(use_case)
-        
+
+        currency = r'(?:₪|שח|ש"ח|ש״ח|שקל|shekel|nis|ils)'
+        num = r'(\d{1,3}(?:[,\.\s]\d{3})*|\d{4,5})' # Matches numbers like 5000, 5,000, 5.000, 5 000
+
         # Extract budget using regex
-        # Look for patterns like "5000", "5,000", "around 3000", "budget is 4500"
         budget_patterns = [
-            r'budget.*?(\d{1,3}(?:,\d{3})*)',
-            r'(\d{1,3}(?:,\d{3})*)\s*(?:shekel|nis|ils|שקל)',
-            r'up to\s*(\d{1,3}(?:,\d{3})*)',
-            r'around\s*(\d{1,3}(?:,\d{3})*)',
-            r'maximum\s*(\d{1,3}(?:,\d{3})*)',
+            rf'תקציב.*?{num}',
+            rf'עד\s*{num}',
+            rf'בערך\s*{num}',
+            rf'סביב(?:ות|)s*\s*{num}',
+            rf'מקס(?:ימום|)\s*{num}',
+            rf'{num}\s*{currency}',
         ]
         
         for pattern in budget_patterns:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
-                budget_str = match.group(1).replace(',', '')
+                raw = match.group(1)
+                budget_str = raw.replace(',', '').replace('.', '').replace(' ', '')
                 try:
                     info['budget_amount'] = float(budget_str)
                     info['has_budget'] = True
@@ -235,38 +230,43 @@ class ConversationFlowManager:
                         break
         
         # Extract product type preference
-        if 'laptop' in text or 'notebook' in text or 'portable' in text or 'נייד' in text:
+        if any(k in text for k in ['laptop', 'notebook', 'portable', 'נייד', 'לפטופ', 'מחשב נייד']):
             info['has_product_type'] = True
             info['product_type'] = 'laptop'
-        elif 'desktop' in text or 'tower' in text or 'נייח' in text:
+        elif any(k in text for k in ['desktop', 'tower', 'pc', 'נייח', 'שולחני', 'מחשב נייח', 'מגדל']):
             info['has_product_type'] = True
             info['product_type'] = 'desktop'
         
         # Extract brand preference
-        if 'lenovo' in text:
+        if any(k in text for k in ['lenovo', 'לנובו']):
             info['has_brand_preference'] = True
             info['brand'] = 'Lenovo'
-        elif 'dell' in text:
+        elif any(k in text for k in ['dell', 'דל']):
             info['has_brand_preference'] = True
             info['brand'] = 'Dell'
+        elif any(k in text for k in ['hp', 'אייץ פי', 'הפ']):
+            info['has_brand_preference'] = True
+            info['brand'] = 'HP'
+        elif any(k in text for k in ['asus', 'אסוס']):
+            info['has_brand_preference'] = True
+            info['brand'] = 'ASUS'
         
         # Extract specific specs
         specs = {}
         
-        # RAM requirements
-        ram_match = re.search(r'(\d+)\s*gb.*?ram|ram.*?(\d+)\s*gb', text, re.IGNORECASE)
+        # RAM requirements: "16GB RAM" / "RAM 16GB" / "16 גיגה ראם"
+        ram_match = re.search(r'(\d+)\s*(?:gb|גיגה)\s*(?:ram|ראם)|(?:ram|ראם)\s*(\d+)\s*(?:gb|גיגה)', text, re.IGNORECASE)
         if ram_match:
             ram_val = int(ram_match.group(1) or ram_match.group(2))
             specs['min_ram'] = ram_val
             info['has_specific_specs'] = True
-        
+
         # GPU requirements
-        if 'rtx' in text or 'nvidia' in text or 'dedicated graphics' in text or 'כרטיס מסך' in text:
+        if any(k in text for k in ['rtx', 'nvidia', 'radeon', 'כרטיס מסך', 'גרפיקה', 'gpu']):
             specs['needs_gpu'] = True
             info['has_specific_specs'] = True
-        
+
         info['spec_requirements'] = specs
-        
         return info
     
     def _identify_missing_info(self, extracted_info: Dict[str, any]) -> List[str]:
@@ -296,9 +296,7 @@ class ConversationFlowManager:
     def _determine_stage(
         self,
         extracted_info: Dict[str, any],
-        conversation_history: List[Dict[str, str]],
-        identified_customer_type: Optional[str]
-    ) -> ConversationStage:
+        conversation_history: List[Dict[str, str]]) -> ConversationStage:
         """
         Determine what stage of the conversation we're in.
         
@@ -312,7 +310,8 @@ class ConversationFlowManager:
         
         # Check if we've already given recommendations
         has_recommended = any(
-            'recommend' in msg['content'].lower() and msg['role'] == 'assistant'
+            (('recommend' in msg['content'].lower()) or ('ממליץ' in msg['content']) or ('המלצה' in msg['content']))
+            and msg['role'] == 'assistant'
             for msg in conversation_history
         )
         
@@ -349,15 +348,12 @@ class ConversationFlowManager:
         1. Use case (most important - tells us what they need)
         2. Product type (laptop vs desktop - affects everything)
         3. Budget (helps us filter appropriately)
-        
-        Why this order? Because knowing the use case helps us ask better
-        questions about product type and budget.
         """
         # Priority 1: Understand the use case
         if 'use_case' in missing_info:
-            return ("I'd be happy to help you find the perfect computer! "
-                   "To give you the best recommendation, could you tell me what you'll mainly use it for? "
-                   "For example: studies, work, gaming, or general home use.")
+            return ("אשמח לעזור לך למצוא את המחשב המושלם! "
+               "כדי לתת לך את ההמלצה הטובה ביותר, תוכל לספר לי למה בעיקר תשתמש במחשב? "
+               "לדוגמה: לימודים, עבודה, גיימינג, או שימוש כללי בבית.")
         
         # Priority 2: Get product type preference
         if 'product_type' in missing_info:
@@ -365,17 +361,17 @@ class ConversationFlowManager:
             if extracted_info['use_case_keywords']:
                 use_case = extracted_info['use_case_keywords'][0]
                 if use_case == 'student':
-                    return "Would you prefer a laptop for portability between classes, or a desktop for your study space?"
+                    return "האם תעדיף מחשב נייד לניידות בין שיעורים, או מחשב נייח לחדר הלימודים שלך?"
                 elif use_case == 'gaming':
-                    return "Are you looking for a gaming laptop (portable) or a gaming desktop (more power for the money)?"
+                    return "האם אתה מחפש מחשב נייד לגיימינג או מחשב נייח לגיימינג (יותר כוח תמורת הכסף)?"
                 else:
-                    return "Do you prefer a laptop (portable) or a desktop (stationary but more powerful)?"
+                    return "האם תעדיף מחשב נייד או מחשב נייח (נייח אבל חזק יותר)?"
             else:
-                return "Would you like a laptop or a desktop computer?"
+                return "האם תרצה מחשב נייד או מחשב שולחני?"
         
         # Priority 3: Get budget
         if 'budget' in missing_info:
-            return "What's your budget range for this purchase? This will help me show you the best options available."
-        
+            return "מה טווח התקציב שלך לרכישה? זה יעזור לי להראות לך את האפשרויות הטובות ביותר הזמינות."
+    
         # If we somehow get here (shouldn't happen), ask a general question
-        return "Is there anything specific you're looking for in a computer? Any particular features or requirements?"
+        return "האם יש משהו ספציפי שאתה מחפש במחשב? תכונות או דרישות מיוחדות?"

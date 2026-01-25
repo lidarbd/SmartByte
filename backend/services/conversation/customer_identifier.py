@@ -220,48 +220,56 @@ class CustomerIdentifier:
     def _get_clarifying_question(self, message: str, full_context: str) -> Optional[str]:
         """
         Generate appropriate clarifying question based on what we know.
+        
+        IMPORTANT: Questions must be in Hebrew.
         """
         # Check what information we're missing
         has_use_case = any(word in full_context for word in [
-            'student', 'gaming', 'work', 'engineer', 'business', 'home'])
+            'student', 'gaming', 'work', 'engineer', 'business', 'home',
+            'סטודנט', 'גיימינג', 'עבודה', 'מהנדס', 'עסק', 'בית'])
         
         has_product_type = any(word in full_context for word in [
-            'laptop', 'desktop', 'notebook', 'pc', 'tower'])
+            'laptop', 'desktop', 'notebook', 'pc', 'tower',
+            'נייד', 'נייח', 'לפטופ'])
         
         has_budget = any(word in full_context for word in [
-            'budget', 'price', 'cost', 'shekel', 'nis', 'ils']) or any(char.isdigit() for char in full_context)
+            'budget', 'price', 'cost', 'shekel', 'nis', 'ils',
+            'תקציב', 'מחיר', 'שקל']) or any(char.isdigit() for char in full_context)
         
-        # Ask the most relevant question
+        # Ask the most relevant question in Hebrew
         if not has_use_case:
-            return ("Great! I'd love to help you find the perfect computer. "
-                   "What will you mainly use it for? For example: studies, work, gaming, or general home use?")
+            return ("מעולה! אשמח לעזור לך למצוא את המחשב המושלם. "
+                "למה בעיקר תשתמש במחשב? לדוגמה: לימודים, עבודה, גיימינג, או שימוש כללי בבית?")
         
         elif not has_product_type:
-            return ("Thanks for letting me know! Do you prefer a laptop (portable) or a desktop (more power for the price)?")
+            return ("תודה על המידע! האם תעדיף מחשב נייד (נייד) או מחשב נייח (יותר כוח תמורת המחיר)?")
         
         elif not has_budget:
-            return ("Perfect! What's your budget range? This will help me show you the best options available.")
+            return ("מעולה! מה טווח התקציב שלך? זה יעזור לי להראות לך את האפשרויות הטובות ביותר הזמינות.")
         
         else:
             # We have enough info, no question needed
             return None
-    
+
     def _check_missing_info(self, text: str) -> Optional[str]:
         """
-        Check if critical information is missing and return appropriate question.
+        Check if critical information is missing and return appropriate question in Hebrew.
         """
-        has_budget = any(word in text for word in ['budget', 'price', 'cost']) or any(char.isdigit() for char in text)
+        has_budget = any(word in text for word in [
+            'budget', 'price', 'cost', 'תקציב', 'מחיר']) or any(char.isdigit() for char in text)
         
-        has_product_type = any(word in text for word in ['laptop', 'desktop', 'notebook', 'pc'])
+        has_product_type = any(word in text for word in [
+            'laptop', 'desktop', 'notebook', 'pc', 'נייד', 'נייח'])
         
         # If customer type is identified but we're missing budget or product type
         if not has_product_type:
-            return "Would you prefer a laptop or a desktop?"
+            return "האם תעדיף מחשב נייד או מחשב נייח?"
         
         if not has_budget:
-            return "What's your budget range for this purchase?"
+            return "מה טווח התקציב שלך לרכישה?"
         
         return None
+
     
     def get_requirements(self, customer_type: CustomerType) -> Dict[str, any]:
         """Get technical requirements for a customer type"""
