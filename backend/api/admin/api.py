@@ -38,7 +38,8 @@ from .exceptions import (
     SessionDetailError,
     InvalidFileTypeError,
     FileReadError,
-    CSVProcessingError
+    CSVProcessingError,
+    ProductQueryError
 )
 
 # Create router
@@ -47,6 +48,72 @@ router = APIRouter(
     tags=["Admin"],
     responses={500: {"description": "Internal server error"}}
 )
+
+# ==================== GET /api/admin/products ====================
+
+@router.get(
+    "/products",
+    status_code=status.HTTP_200_OK,
+    summary="List all products"
+)
+async def get_products(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=100, description="Items per page"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a paginated list of all products in the database.
+    
+    This is useful for verifying that CSV uploads worked correctly
+    and for browsing the product catalog.
+    """
+    try:
+        # Calculate offset for pagination
+        offset = (page - 1) * page_size
+        
+        # Query products with pagination
+        products = (
+            db.query(Product)
+            .order_by(Product.id)
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+        
+        # Get total count
+        total = db.query(func.count(Product.id)).scalar()
+        
+        # Convert to list of dictionaries for response
+        products_list = []
+        for product in products:
+            product_dict = {
+                "id": product.id,
+                "sku": product.sku,
+                "name": product.name,
+                "brand": product.brand,
+                "product_type": product.product_type,
+                "category": product.category,
+                "price": float(product.price),
+                "stock": product.stock,
+                "specs": product.specs,
+                "description": product.description
+            }
+            products_list.append(product_dict)
+        
+        return {
+            "products": products_list,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": math.ceil(total / page_size) if page_size > 0 else 0
+        }
+    
+    except Exception as e:
+        # Log the error for debugging purposes
+        print(f"Error retrieving products: {str(e)}")
+        # Raise our custom exception instead of generic HTTPException
+        raise ProductQueryError(f"Failed to retrieve products: {str(e)}")
+
 
 
 # ==================== GET /api/admin/metrics ====================

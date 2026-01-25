@@ -82,3 +82,13 @@ class CSVProcessingError(AdminAPIError):
             message=f"Failed to process CSV file: {details}",
             status_code=status.HTTP_400_BAD_REQUEST
         )
+
+
+class ProductQueryError(AdminAPIError):
+    """Raised when there's an error querying products from the database."""
+    
+    def __init__(self, message: str = "Failed to retrieve products"):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
