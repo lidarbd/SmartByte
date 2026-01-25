@@ -3,7 +3,7 @@ Admin API Endpoints
 """
 
 import math
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import Optional
@@ -30,6 +30,15 @@ from .schemas import (
     ChatMessageDetail,
     RecommendationDetail,
     CSVUploadResponse
+)
+from .exceptions import (
+    MetricsCalculationError,
+    SessionNotFoundError,
+    SessionQueryError,
+    SessionDetailError,
+    InvalidFileTypeError,
+    FileReadError,
+    CSVProcessingError
 )
 
 # Create router
@@ -123,11 +132,10 @@ async def get_metrics(db: Session = Depends(get_db)) -> MetricsResponse:
         )
     
     except Exception as e:
-        print(f"Error in get_metrics: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve metrics: {str(e)}"
-        )
+        # Log the error for debugging
+        print(f"Error calculating metrics: {str(e)}")
+        # Raise custom exception with original error details
+        raise MetricsCalculationError(f"Failed to retrieve metrics: {str(e)}")
 
 
 # ==================== GET /api/admin/sessions ====================
@@ -147,10 +155,10 @@ async def get_sessions(
     """List conversation sessions with pagination and search."""
     
     try:
-        # Build query
+        # Build base query
         query = db.query(ChatSession)
         
-        # Apply search filter
+        # Apply search filter if provided
         if search and search.strip():
             search_term = f"%{search.strip()}%"
             query = query.filter(
@@ -158,7 +166,7 @@ async def get_sessions(
                 (ChatSession.customer_type.ilike(search_term))
             )
         
-        # Get total count
+        # Get total count for pagination
         total = query.count()
         
         # Apply pagination
@@ -171,7 +179,7 @@ async def get_sessions(
             .all()
         )
         
-        # Build summaries
+        # Build session summaries with message and recommendation counts
         session_summaries = []
         for session in sessions:
             message_count = (
@@ -208,11 +216,8 @@ async def get_sessions(
         )
     
     except Exception as e:
-        print(f"Error in get_sessions: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve sessions: {str(e)}"
-        )
+        print(f"Error querying sessions: {str(e)}")
+        raise SessionQueryError(f"Failed to retrieve sessions: {str(e)}")
 
 
 # ==================== GET /api/admin/sessions/{session_id} ====================
@@ -227,23 +232,21 @@ async def get_session_detail(
     session_id: str,
     db: Session = Depends(get_db)
 ) -> SessionDetailResponse:
-    """Get complete details for a specific session."""
+    """Get complete details for a specific session including all messages and recommendations."""
     
     try:
-        # Find session
+        # Find the requested session
         session = (
             db.query(ChatSession)
             .filter(ChatSession.session_id == session_id)
             .first()
         )
         
+        # Raise specific exception if session not found
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session with ID '{session_id}' not found"
-            )
+            raise SessionNotFoundError(session_id)
         
-        # Load messages
+        # Load all messages for this session
         messages_query = (
             db.query(ChatMessage)
             .filter(ChatMessage.session_id == session.id)
@@ -260,7 +263,7 @@ async def get_session_detail(
             for msg in messages_query
         ]
         
-        # Load recommendations
+        # Load all recommendations with product details
         recommendations_query = (
             db.query(
                 Recommendation,
@@ -274,6 +277,7 @@ async def get_session_detail(
         
         recommendations = []
         for rec, product_name, product_price in recommendations_query:
+            # Get upsell product name if exists
             upsell_name = None
             if rec.upsell_product_id:
                 upsell_product = (
@@ -305,14 +309,12 @@ async def get_session_detail(
             recommendations=recommendations
         )
     
-    except HTTPException:
+    except SessionNotFoundError:
+        # Re-raise our custom exception as-is
         raise
     except Exception as e:
-        print(f"Error in get_session_detail: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve session details: {str(e)}"
-        )
+        print(f"Error retrieving session details: {str(e)}")
+        raise SessionDetailError(f"Failed to retrieve session details: {str(e)}")
 
 
 # ==================== POST /api/admin/products/upload ====================
@@ -327,27 +329,21 @@ async def upload_products(
     file: UploadFile = File(..., description="CSV file"),
     db: Session = Depends(get_db)
 ) -> CSVUploadResponse:
-    """Handle CSV file upload and product import."""
+    """Handle CSV file upload and import products into the database."""
     
     try:
-        # Validate file type
+        # Validate file extension
         if not file.filename.endswith('.csv'):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File must be a CSV file (.csv extension)"
-            )
+            raise InvalidFileTypeError(file.filename)
         
-        # Read file content
+        # Read and decode file content
         try:
             content = await file.read()
             content_str = content.decode('utf-8')
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to read file: {str(e)}"
-            )
+            raise FileReadError(str(e))
         
-        # Process CSV
+        # Process CSV using the CSVLoader service
         try:
             loader = CSVLoader(db)
             stats = loader.load_from_upload(
@@ -355,12 +351,10 @@ async def upload_products(
                 upsert=True
             )
         except CSVParsingError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid CSV format: {str(e)}"
-            )
+            # Convert service exception to our admin exception
+            raise CSVProcessingError(f"Invalid CSV format: {str(e)}")
         
-        # Build response
+        # Build success message based on results
         if stats['loaded'] == 0 and stats.get('updated', 0) == 0:
             message = "No products were loaded. Check the errors list."
         elif len(stats.get('errors', [])) == 0:
@@ -373,18 +367,17 @@ async def upload_products(
             statistics=stats
         )
     
-    except HTTPException:
+    except (InvalidFileTypeError, FileReadError, CSVProcessingError):
+        # Re-raise our custom exceptions as-is
         raise
     except Exception as e:
-        print(f"Error in upload_products: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process CSV upload: {str(e)}"
-        )
+        print(f"Unexpected error processing CSV upload: {str(e)}")
+        raise CSVProcessingError(str(e))
 
 
-# Health check
+# ==================== Health Check ====================
+
 @router.get("/health", status_code=status.HTTP_200_OK, summary="Health check")
 async def health_check():
-    """Simple health check endpoint."""
+    """Simple health check endpoint to verify the admin API is running."""
     return {"status": "healthy", "service": "admin-api"}

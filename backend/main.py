@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     Shutdown: Clean up resources (if needed)
     """
     # ===== Startup =====
-    print("🚀 Starting SmartByte Backend...")
+    print("Starting SmartByte Backend...")
     
     # Initialize database - creates tables if they don't exist
     try:
