@@ -5,6 +5,7 @@ Handles loading products from CSV files into the database.
 """
 
 import csv
+import io
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 
@@ -27,7 +28,7 @@ class CSVLoader:
     
     def load_from_csv(self, file_path: str, clear_existing: bool = False) -> Dict[str, Any]:
         """
-        Load products from a CSV file.
+        Load products from a CSV file on disk.
         
         Args:
             file_path: Path to CSV file
@@ -45,9 +46,79 @@ class CSVLoader:
         Raises:
             CSVParsingError: If CSV cannot be read
         """
+        try:
+            # Read the file content
+            with open(file_path, 'r', encoding='utf-8') as file:
+                file_content = file.read()
+            
+            # Use the shared processing logic
+            return self._process_csv_content(
+                file_content=file_content,
+                clear_existing=clear_existing,
+                upsert=False
+            )
+        
+        except FileNotFoundError:
+            raise CSVParsingError(f"CSV file not found: {file_path}")
+        
+        except Exception as e:
+            raise CSVParsingError(f"Failed to load CSV: {str(e)}")
+    
+    def load_from_upload(self, file_content: str, upsert: bool = False) -> Dict[str, Any]:
+        """
+        Load products from uploaded CSV content (already in memory).
+        
+        This method is designed for API uploads where the file content
+        is already read into memory as a string.
+        
+        Args:
+            file_content: CSV content as string
+            upsert: If True, update existing products with same SKU.
+                   If False, skip products with existing SKUs.
+        
+        Returns:
+            Dictionary with loading statistics:
+            {
+                "total_rows": 100,
+                "loaded": 95,
+                "updated": 5,  # Only if upsert=True
+                "skipped": 5,
+                "errors": ["row 3: missing price", ...]
+            }
+        
+        Raises:
+            CSVParsingError: If CSV cannot be parsed
+        """
+        return self._process_csv_content(
+            file_content=file_content,
+            clear_existing=False,
+            upsert=upsert
+        )
+    
+    def _process_csv_content(
+        self, 
+        file_content: str, 
+        clear_existing: bool = False,
+        upsert: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Core logic for processing CSV content.
+        
+        This method contains the shared logic used by both load_from_csv
+        and load_from_upload, avoiding code duplication.
+        
+        Args:
+            file_content: CSV content as string
+            clear_existing: If True, delete all existing products before loading
+            upsert: If True, update existing products; if False, skip them
+        
+        Returns:
+            Dictionary with loading statistics
+        """
         stats = {
             "total_rows": 0,
             "loaded": 0,
+            "updated": 0,
             "skipped": 0,
             "errors": []
         }
@@ -58,37 +129,51 @@ class CSVLoader:
                 self.repo.delete_all_products()
                 print("Cleared all existing products")
             
-            # Read CSV file
-            with open(file_path, 'r', encoding='utf-8') as file:
-                csv_reader = csv.DictReader(file)
+            # Use StringIO to read CSV from string (works for both file and upload)
+            csv_file = io.StringIO(file_content)
+            csv_reader = csv.DictReader(csv_file)
+            
+            # Process each row
+            for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+                stats["total_rows"] += 1
                 
-                products_to_create = []
-                
-                for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
-                    stats["total_rows"] += 1
+                try:
+                    # Parse and validate row
+                    product_data = self._parse_csv_row(row)
                     
-                    try:
-                        # Parse and validate row
-                        product_data = self._parse_csv_row(row)
-                        products_to_create.append(product_data)
+                    # Check if product with this SKU already exists
+                    existing_product = self.repo.get_product_by_sku(product_data['sku'])
+                    
+                    if existing_product:
+                        if upsert:
+                            # Update existing product
+                            self.repo.update_product(existing_product.id, product_data)
+                            stats["updated"] += 1
+                        else:
+                            # Skip this product
+                            stats["skipped"] += 1
+                            stats["errors"].append(
+                                f"Row {row_num}: Product with SKU '{product_data['sku']}' already exists (skipped)"
+                            )
+                    else:
+                        # Create new product
+                        self.repo.create_product(product_data)
                         stats["loaded"] += 1
-                    
-                    except Exception as e:
-                        stats["skipped"] += 1
-                        stats["errors"].append(f"Row {row_num}: {str(e)}")
                 
-                # Bulk insert all products
-                if products_to_create:
-                    self.repo.bulk_create_products(products_to_create)
-                    print(f"Loaded {len(products_to_create)} products")
+                except Exception as e:
+                    stats["skipped"] += 1
+                    stats["errors"].append(f"Row {row_num}: {str(e)}")
+            
+            # Commit all changes
+            self.db.commit()
+            print(f"Processed {stats['total_rows']} rows: {stats['loaded']} loaded, {stats['updated']} updated, {stats['skipped']} skipped")
             
             return stats
         
-        except FileNotFoundError:
-            raise CSVParsingError(f"CSV file not found: {file_path}")
-        
         except Exception as e:
-            raise CSVParsingError(f"Failed to load CSV: {str(e)}")
+            # Rollback on error
+            self.db.rollback()
+            raise CSVParsingError(f"Failed to process CSV: {str(e)}")
     
     def _parse_csv_row(self, row: Dict[str, str]) -> Dict[str, Any]:
         """
@@ -121,18 +206,14 @@ class CSVLoader:
             raise ValueError(f"Invalid price or stock value: {str(e)}")
         
         # Determine product name - flexible approach that works for any product type
-        # This handles current types (laptop, desktop, accessory) and future types
         if 'model' in row and row['model'].strip():
-            # Products with 'model' field (computers, tablets, etc.)
             name = row['model'].strip()
         elif 'product_name' in row and row['product_name'].strip():
-            # Products with 'product_name' field (accessories, peripherals, etc.)
             name = row['product_name'].strip()
         else:
             raise ValueError("Product must have either 'model' or 'product_name' field")
         
         # Build specs dictionary for products that have technical specs
-        # Check if this product type has specs (by checking if spec fields exist)
         specs = self._extract_specs(row)
         
         # Create product data dictionary
