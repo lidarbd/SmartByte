@@ -1,44 +1,124 @@
 version: '3.8'
 
-# כאן אנחנו מגדירים את כל ה"שירותים" (קונטיינרים) בפרויקט
+# This file orchestrates all the services (containers) in the SmartByte project.
+# Docker Compose reads this file and creates an environment where multiple
+# containers can run together and communicate with each other.
 services:
-  # השירות הראשון שלנו - ה-backend
+  # ==================== Backend Service ====================
+  # The backend service runs our FastAPI application with all the business logic,
+  # database connections, and AI integration for the sales assistant.
   backend:
-    # בונים את הקונטיינר מתוך ה-Dockerfile שיצרנו
+    # Build the container from the Dockerfile we created in the backend directory.
+    # This tells Docker how to set up the Python environment, install dependencies,
+    # and prepare everything the backend needs to run.
     build:
       context: ./backend
       dockerfile: Dockerfile
     
-    # שם יפה לקונטיינר (אופציונלי, אבל נוח)
+    # A friendly name for the container (optional, but makes logs easier to read)
     container_name: smartbyte-backend
     
-    # אם הקונטיינר קורס, הרם אותו שוב
+    # Restart policy: if the container crashes for any reason, Docker will
+    # automatically restart it. "unless-stopped" means it will restart on failure
+    # but not if we manually stopped it with docker compose down.
     restart: unless-stopped
     
-    # מיפוי פורטים: פורט במחשב שלך:פורט בקונטיינר
-    # כלומר, http://localhost:8000 יכנס לפורט 8000 של הקונטיינר
+    # Port mapping: host_port:container_port
+    # This means http://localhost:8000 on your machine will connect to
+    # port 8000 inside the container where FastAPI is listening.
     ports:
       - "8000:8000"
     
+    # Load environment variables from the .env file in the root directory.
+    # This keeps sensitive data like API keys out of version control.
     env_file:
       - .env
     
-    # משתני סביבה שצריכים להגיע לקונטיינר
+    # Additional environment variables that can override or supplement the .env file.
+    # These are specific to the backend service.
     environment:
       - LLM_PROVIDER=openai
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./smartbyte.db}
     
-    # חיבור תיקייה מהמחשב שלך לקונטיינר
-    # זה אומר שכל שינוי בקוד יתעדכן מיד בקונטיינר (נוח לפיתוח)
+    # Volume mappings: they connect directories between your machine and the container.
+    # The first volume enables hot-reloading - changes to your code are immediately
+    # reflected in the running container without rebuilding.
+    # The second volume persists the database so data isn't lost when containers restart.
     volumes:
       - ./backend:/app
+      - smartbyte-db:/app
     
-    # הרצה במצב פיתוח עם reload אוטומטי
+    # The command that runs when the container starts. In development mode, we use
+    # uvicorn with --reload so the server automatically restarts when code changes.
+    # --host 0.0.0.0 is crucial: it makes the server accessible from outside the container.
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    
+    # Connect this container to our custom network so it can communicate with other services.
+    # This is important for frontend-backend communication.
+    networks:
+      - smartbyte-network
 
-  # TODO
-  # frontend:
-  #   ...
-  # database:
-  #   ...
+  # ==================== Frontend Service ====================
+  # The frontend service runs our React application with Vite as the development server.
+  # It provides the user interface for both customers and administrators.
+  frontend:
+    # Build the container from the Dockerfile in the frontend directory.
+    # This sets up Node.js, installs all npm packages, and prepares Vite.
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    
+    # A friendly name for the frontend container
+    container_name: smartbyte-frontend
+    
+    # Same restart policy as backend - automatically restart on crashes
+    restart: unless-stopped
+    
+    # Port mapping: Vite's development server runs on port 5173 by default.
+    # This makes the frontend accessible at http://localhost:5173
+    ports:
+      - "5173:5173"
+    
+    # Volume mappings for the frontend.
+    # The first volume connects your local frontend code to the container,
+    # enabling hot module replacement (HMR) - changes appear instantly in the browser.
+    # The second volume is a trick: it keeps node_modules inside the container
+    # separate from your local node_modules, preventing conflicts between
+    # different operating systems or architectures.
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    
+    # Dependency declaration: Docker Compose will ensure the backend starts
+    # before the frontend. This is logical since the frontend will need to
+    # communicate with the backend API.
+    depends_on:
+      - backend
+    
+    # Environment variables for the frontend.
+    # VITE_API_URL tells the frontend where to find the backend API.
+    # Any variable starting with VITE_ is accessible in the React code.
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    
+    # Connect to the same network as the backend so they can communicate
+    networks:
+      - smartbyte-network
+
+# ==================== Networks ====================
+# Define a custom network that all our services share.
+# This creates an isolated network where containers can communicate with each other
+# using their service names as hostnames (e.g., frontend can reach backend
+# at http://backend:8000). The bridge driver is the standard for single-host networking.
+networks:
+  smartbyte-network:
+    driver: bridge
+
+# ==================== Volumes ====================
+# Define named volumes that persist data across container restarts.
+# The smartbyte-db volume stores our SQLite database file, ensuring that
+# customer data, sessions, and product information aren't lost when we
+# stop or rebuild containers. Without this, we'd lose all data on every restart.
+volumes:
+  smartbyte-db:
