@@ -8,6 +8,8 @@ This repository contains a full-stack application for SmartByte:
 - Backend: `cd backend` → create venv → `pip install -r requirements.txt` → `uvicorn main:app --reload`
 - Frontend: `cd frontend` → `npm install` → `npm run dev`
 
+Database is SQLite (smartbyte.db). For local inspection you may use DB Browser for SQLite / VSCode SQLite extension (optional).
+
 ## Scalability Considerations
 
 ### Current Implementation (Development)
