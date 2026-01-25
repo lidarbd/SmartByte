@@ -34,5 +34,8 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Database files
+*.db
+
 # Logs
 *.log

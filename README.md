@@ -8,6 +8,8 @@ This repository contains a full-stack application for SmartByte:
 - Backend: `cd backend` → create venv → `pip install -r requirements.txt` → `uvicorn main:app --reload`
 - Frontend: `cd frontend` → `npm install` → `npm run dev`
 
+Database is SQLite (smartbyte.db). For local inspection you may use DB Browser for SQLite / VSCode SQLite extension (optional).
+
 ## Scalability Considerations
 
 ### Current Implementation (Development)
@@ -66,3 +68,22 @@ Most of the scalability improvements require **zero code changes** thanks to the
 - Pagination: Add optional parameters to existing repository functions
 - Caching: Decorator pattern on repository methods
 - Background tasks: Wrap upload endpoint with FastAPI `BackgroundTasks`
+
+## Future Enhancements
+
+If the system grows significantly in complexity, the following tools could be integrated:
+
+**LangChain/LangGraph**: For more complex conversation flows with multiple decision points and memory management.
+
+**Hugging Face Models**: For running models locally without API costs, particularly useful for:
+- Privacy-sensitive applications
+- High-volume scenarios where API costs are prohibitive  
+- Offline environments
+
+**Current Implementation**: The current architecture uses direct OpenAI API calls, which provides:
+- Simplicity and maintainability
+- Easy debugging
+- High-quality responses
+- Lower development time
+
+The modular design (LLM Provider pattern) allows easy integration of alternative LLM sources if needed in the future.

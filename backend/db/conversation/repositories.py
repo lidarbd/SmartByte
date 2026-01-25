@@ -4,7 +4,7 @@ Repository Pattern for Database Operations
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
-from backend.db.conversation.models import Product, ChatSession, ChatMessage, Recommendation
+from db.conversation.models import Product, ChatSession, ChatMessage, Recommendation
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -112,7 +112,6 @@ class ProductRepository:
         results = query.all()
         
         # Additional filtering based on specs (for computers)
-        # This is done in Python because it requires JSON field queries
         if min_ram or min_storage:
             filtered_results = []
             for product in results:

@@ -10,8 +10,8 @@ This module handles:
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from backend.core.config import settings
-from backend.db.conversation.models import Base  
+from core.config import settings
+from db.conversation.models import Base  
 from typing import Generator
 
 # Create the database engine
