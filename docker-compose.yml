@@ -44,10 +44,8 @@ services:
     # Volume mappings: they connect directories between your machine and the container.
     # The first volume enables hot-reloading - changes to your code are immediately
     # reflected in the running container without rebuilding.
-    # The second volume persists the database so data isn't lost when containers restart.
     volumes:
       - ./backend:/app
-      - smartbyte-db:/app
     
     # The command that runs when the container starts. In development mode, we use
     # uvicorn with --reload so the server automatically restarts when code changes.

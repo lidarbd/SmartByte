@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from db.conversation.models import Product, ChatSession, ChatMessage, Recommendation
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ProductRepository:
@@ -194,7 +194,7 @@ class ProductRepository:
         product = self.get_product_by_id(product_id)
         if product:
             product.stock = new_stock
-            product.updated_at = datetime.utcnow()
+            product.updated_at = datetime.now(timezone.utc)
             self.db.commit()
             self.db.refresh(product)
         return product
@@ -248,13 +248,38 @@ class ProductRepository:
             for key, value in product_data.items():
                 if key != 'sku':  # Don't update SKU
                     setattr(existing, key, value)
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
             self.db.commit()
             self.db.refresh(existing)
             return existing
         else:
             # Create new product
             return self.create_product(product_data)
+        
+    def update_product(self, product_id: int, product_data: Dict[str, Any]) -> Optional[Product]:
+        """
+        Update an existing product with new data.
+        
+        Args:
+            product_id: Internal ID of the product to update
+            product_data: Dictionary with updated product information
+        
+        Returns:
+            The updated Product object or None if not found
+        """
+        product = self.get_product_by_id(product_id)
+        if not product:
+            return None
+        
+        # Update all provided fields
+        for key, value in product_data.items():
+            if key != 'id':  # Don't update the ID itself
+                setattr(product, key, value)
+        
+        product.updated_at = datetime.utcnow()
+        self.db.commit()
+        self.db.refresh(product)
+        return product
 
 
 class ChatSessionRepository:
@@ -265,7 +290,7 @@ class ChatSessionRepository:
     
     def create_session(self, session_id: str) -> ChatSession:
         """Create a new chat session."""
-        session = ChatSession(session_id=session_id, started_at=datetime.utcnow())
+        session = ChatSession(session_id=session_id, started_at=datetime.now(timezone.utc))
         self.db.add(session)
         self.db.commit()
         self.db.refresh(session)
@@ -301,7 +326,7 @@ class ChatMessageRepository:
             session_id=session_id,
             role=role,
             content=content,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         self.db.add(message)
         self.db.commit()
@@ -334,7 +359,7 @@ class RecommendationRepository:
             product_id=product_id,
             upsell_product_id=upsell_product_id,
             recommendation_text=recommendation_text,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         self.db.add(recommendation)
         self.db.commit()

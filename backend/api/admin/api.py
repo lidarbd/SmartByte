@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from db.database import get_db
 from db.conversation.models import (

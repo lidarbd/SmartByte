@@ -152,9 +152,7 @@ class RecommendationService:
             if not products:
                 # No matching products - offer alternatives
                 response = self._handle_no_products_found(
-                    customer_type=customer_type,
                     extracted_info=extracted_info,
-                    user_message=user_message
                 )
                 
                 return self._save_and_return_response(
@@ -207,16 +205,13 @@ class RecommendationService:
     
     def _handle_off_topic(self, message: str) -> str:
         """
-        Handle off-topic conversations with gentle redirection.
-        
-        The goal is to be polite but firm - we're here to help with computers,
-        not other topics.
+        Handle off-topic conversations with gentle redirection in Hebrew.
         """
-        return ("I appreciate your message! However, I specialize in helping customers find "
-                "the perfect computer or accessory for their needs. "
-                "I'd love to help you with that! Are you looking for a laptop, desktop, "
-                "or perhaps an accessory today?")
-    
+        return ("אני מעריך את ההודעה שלך! עם זאת, אני מתמחה בעזרה ללקוחות למצוא "
+                "את המחשב או האביזר המושלם לצרכים שלהם. "
+                "אשמח לעזור לך בכך! האם אתה מחפש מחשב נייד, מחשב נייח, "
+                "או אולי אביזר כלשהו היום?")
+
     def _generate_clarifying_response(
         self,
         conversation_state: Dict[str, any],
@@ -226,34 +221,35 @@ class RecommendationService:
     ) -> str:
         """
         Generate a response that asks clarifying questions naturally.
-        
-        This uses the LLM to create natural-sounding questions that guide
-        the conversation forward while gathering needed information.
         """
         suggested_question = conversation_state['suggested_question']
         missing_info = conversation_state['missing_info']
         
-        # Build system prompt that instructs LLM to ask questions
         system_prompt = f"""You are a friendly and professional computer store sales assistant.
 
-SITUATION: You're helping a customer find the right computer, but you need more information.
+    CRITICAL: You MUST respond in Hebrew (עברית). All your responses must be in Hebrew language.
 
-CUSTOMER TYPE: {customer_type.value}
+    SITUATION: You're helping a customer find the right computer, but you need more information.
 
-MISSING INFORMATION: {', '.join(missing_info)}
+    CUSTOMER TYPE: {customer_type.value}
 
-YOUR TASK:
-1. Acknowledge the customer's message warmly
-2. Ask the clarifying question naturally: "{suggested_question}"
-3. Keep it conversational and friendly
-4. Don't overwhelm them - just ask ONE question
-5. Make it feel like a helpful conversation, not an interrogation
+    MISSING INFORMATION: {', '.join(missing_info)}
 
-EXAMPLE:
-User: "I need a computer"
-You: "Great! I'd love to help you find the perfect computer. To make sure I recommend the best option for you, what will you mainly use it for? For example: work, studies, gaming, or general home use?"
+    YOUR TASK:
+    1. Acknowledge the customer's message warmly IN HEBREW
+    2. Ask the clarifying question naturally IN HEBREW: "{suggested_question}"
+    3. Keep it conversational and friendly IN HEBREW
+    4. Don't overwhelm them - just ask ONE question
+    5. Make it feel like a helpful conversation, not an interrogation
 
-Remember: Be warm, professional, and helpful. Ask only what you need to know."""
+    EXAMPLE (in Hebrew):
+    User: "אני צריך מחשב"
+    You: "מעולה! אשמח לעזור לך למצוא את המחשב המושלם. כדי שאוכל להמליץ על האפשרות הטובה ביותר עבורך, למה בעיקר תשתמש במחשב? לדוגמה: עבודה, לימודים, גיימינג, או שימוש כללי בבית?"
+
+    REMEMBER: 
+    - Respond ONLY in Hebrew
+    - Be warm, professional, and helpful
+    - Ask only what you need to know"""
         
         # Build messages
         messages = [{"role": "system", "content": system_prompt}]
@@ -268,42 +264,37 @@ Remember: Be warm, professional, and helpful. Ask only what you need to know."""
             response = self.llm.generate_with_context(messages, temperature=0.7, max_tokens=150)
             return response
         except LLMProviderError:
-            # Fallback to simple question
+            # Fallback to simple question in Hebrew
             return suggested_question
-    
+
     def _handle_no_products_found(
         self,
-        customer_type: CustomerType,
-        extracted_info: Dict[str, any],
-        user_message: str
+        extracted_info: Dict[str, any]
     ) -> str:
         """
-        Handle case when no products match the requirements.
-        
-        Important: We never invent products! We honestly say we don't have
-        exactly what they want, and offer to help find alternatives.
+        Handle case when no products match the requirements - IN HEBREW.
         """
         budget = extracted_info.get('budget_amount')
-        product_type = extracted_info.get('product_type', 'computer')
+        product_type = extracted_info.get('product_type', 'מחשב')
         
-        response = f"Thank you for sharing your requirements! "
+        response = f"תודה על שיתוף הדרישות שלך! "
         
         if budget:
-            response += f"I've checked our current inventory for {product_type}s within {int(budget)} ILS, "
+            response += f"בדקתי את המלאי הנוכחי שלנו עבור {product_type} בטווח של {int(budget)} ₪, "
         else:
-            response += f"I've checked our current inventory for {product_type}s, "
+            response += f"בדקתי את המלאי הנוכחי שלנו עבור {product_type}, "
         
-        response += "but unfortunately I don't have any products in stock that exactly match all your requirements at the moment.\n\n"
+        response += "אבל למרבה הצער אין לי כרגע מוצרים במלאי שמתאימים בדיוק לכל הדרישות שלך.\n\n"
         
-        response += "However, I have a few options:\n"
-        response += "1. I can show you similar products that are close to your needs\n"
-        response += "2. We could adjust the budget slightly to see more options\n"
-        response += "3. We could consider a different product type (laptop vs desktop)\n\n"
+        response += "עם זאת, יש לי כמה אפשרויות:\n"
+        response += "1. אוכל להראות לך מוצרים דומים שקרובים לצרכים שלך\n"
+        response += "2. נוכל להתאים את התקציב מעט כדי לראות יותר אפשרויות\n"
+        response += "3. נוכל לשקול סוג מוצר אחר (נייד מול נייח)\n\n"
         
-        response += "What would you prefer?"
+        response += "מה תעדיף?"
         
         return response
-    
+   
     def _generate_recommendation_with_guardrails(
         self,
         user_message: str,
@@ -317,63 +308,62 @@ Remember: Be warm, professional, and helpful. Ask only what you need to know."""
         """
         Generate recommendation with VERY strong guardrails.
         
-        This is the most critical function - it must ensure the LLM:
-        1. Only recommends products that exist
-        2. Only mentions prices that are real
-        3. Only mentions stock that's available
-        4. Doesn't invent specifications
-        5. Stays on topic
+        CRITICAL: System prompt in English, but response MUST be in Hebrew.
         """
         # Build product context string
         products_context = self._build_strict_product_context(products)
         
-        # Build system prompt with extremely strong guardrails
+        # Build system prompt - ENGLISH with Hebrew response requirement
         system_prompt = f"""You are a professional computer store sales assistant helping a {customer_type.value}.
 
-==================== CRITICAL RULES - YOU MUST OBEY ====================
-1. ONLY recommend products from the list below
-2. ONLY mention the exact prices shown
-3. ONLY mention the exact specifications shown
-4. NEVER invent product names, prices, or specs
-5. If asked about products not in the list, say "not available in stock"
-6. Stay focused on computers - redirect other topics politely
+    ==================== CRITICAL RULES - YOU MUST OBEY ====================
+    1. You MUST respond in Hebrew (עברית) - this is mandatory
+    2. ONLY recommend products from the list below
+    3. ONLY mention the exact prices shown
+    4. ONLY mention the exact specifications shown
+    5. NEVER invent product names, prices, or specs
+    6. If asked about products not in the list, say "לא זמין במלאי" (not available in stock)
+    7. Stay focused on computers - redirect other topics politely IN HEBREW
 
-AVAILABLE PRODUCTS IN STOCK:
-{products_context}
+    AVAILABLE PRODUCTS IN STOCK:
+    {products_context}
 
-YOUR PRIMARY RECOMMENDATION:
-Product: {main_product.display_name}
-SKU: {main_product.sku}
-Price: {main_product.price} ILS (exactly this price - do not round or change)
-Stock: {main_product.stock} units available
-Specifications:
-{json.dumps(main_product.specs, indent=2, ensure_ascii=False) if main_product.specs else 'Standard specifications'}
+    YOUR PRIMARY RECOMMENDATION:
+    Product: {main_product.display_name}
+    SKU: {main_product.sku}
+    Price: {main_product.price} ILS (exactly this price - do not round or change)
+    Stock: {main_product.stock} units available
+    Specifications:
+    {json.dumps(main_product.specs, indent=2, ensure_ascii=False) if main_product.specs else 'Standard specifications'}
 
-SUGGESTED ACCESSORY (optional upsell):
-{self._format_upsell_for_prompt(upsell_product) if upsell_product else 'No accessory available'}
+    SUGGESTED ACCESSORY (optional upsell):
+    {self._format_upsell_for_prompt(upsell_product) if upsell_product else 'No accessory available'}
 
-CUSTOMER REQUIREMENTS:
-{requirements.get('description', 'General use')}
+    CUSTOMER REQUIREMENTS:
+    {requirements.get('description', 'General use')}
 
-YOUR TASK:
-1. Explain why {main_product.name} is perfect for this {customer_type.value}
-2. Highlight 2-3 key specs that match their needs
-3. State the exact price: {main_product.price} ILS
-4. Mention the accessory naturally if available
-5. Keep response under 120 words
-6. Sound natural and helpful, not robotic
+    YOUR TASK (respond in Hebrew):
+    1. Explain why {main_product.name} is perfect for this {customer_type.value} - IN HEBREW
+    2. Highlight 2-3 key specs that match their needs - IN HEBREW
+    3. State the exact price: {main_product.price} ₪ (use ₪ symbol, not ILS)
+    4. Mention the accessory naturally if available - IN HEBREW
+    5. Keep response under 120 words
+    6. Sound natural and helpful, not robotic - IN HEBREW
 
-EXAMPLE RESPONSE STYLE:
-"Perfect! For {customer_type.value} use, I recommend the {main_product.display_name}. 
-It's priced at {main_product.price} ILS and features [spec 1] and [spec 2], which are ideal for [use case].
-To complete your setup, I'd suggest adding [accessory] for [benefit]."
+    EXAMPLE RESPONSE STYLE (in Hebrew):
+    "מעולה! לשימוש של {customer_type.value}, אני ממליץ על {main_product.display_name}. 
+    המחיר שלו הוא {main_product.price} ₪ והוא כולל [מפרט 1] ו-[מפרט 2], שהם אידיאליים ל[תחום שימוש].
+    כדי להשלים את המערכת שלך, אמליץ להוסיף [אביזר] עבור [יתרון]."
 
-REMEMBER: Use ONLY the information provided above. Do not create any information."""
+    REMEMBER: 
+    - Respond ONLY in Hebrew
+    - Use ONLY the information provided above
+    - Do not create any information
+    - Use ₪ symbol for prices"""
         
-        # Build messages
+        # Rest of the function stays the same...
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Add recent history
         if history:
             messages.extend(history[-4:])
         
@@ -382,17 +372,14 @@ REMEMBER: Use ONLY the information provided above. Do not create any information
         try:
             response = self.llm.generate_with_context(
                 messages,
-                temperature=0.6,  # Lower temperature for more deterministic output
+                temperature=0.6,
                 max_tokens=250
             )
             
-            # Post-process to ensure no hallucinations
-            response = self._validate_response(response, products, main_product)
-            
+            response = self._validate_response(response, main_product)
             return response
         
         except LLMProviderError:
-            # Fallback to template-based response (guaranteed accurate)
             return self._generate_template_recommendation(
                 main_product=main_product,
                 upsell_product=upsell_product,
@@ -422,7 +409,6 @@ REMEMBER: Use ONLY the information provided above. Do not create any information
     def _validate_response(
         self,
         response: str,
-        valid_products: List[Product],
         main_product: Product
     ) -> str:
         """
@@ -433,8 +419,6 @@ REMEMBER: Use ONLY the information provided above. Do not create any information
         - Product name matches actual name
         - No invented specifications
         """
-        # This is a simple validation - you could make it more sophisticated
-        # For now, we just ensure the main product price is mentioned correctly
         
         if str(main_product.price) not in response:
             # LLM changed the price - fix it
@@ -453,32 +437,29 @@ REMEMBER: Use ONLY the information provided above. Do not create any information
         requirements: Dict[str, any]
     ) -> str:
         """
-        Generate a simple, template-based recommendation.
-        
-        This is used as a fallback when LLM fails. It's less natural
-        but guaranteed to be accurate.
+        Generate a simple, template-based recommendation IN HEBREW.
         """
-        response = f"Based on your needs as a {customer_type.value}, "
-        response += f"I recommend the {main_product.display_name} "
-        response += f"for {main_product.price} ILS. "
+        response = f"בהתבסס על הצרכים שלך כ{customer_type.value}, "
+        response += f"אני ממליץ על {main_product.display_name} "
+        response += f"במחיר של {main_product.price} ₪. "
         
         if main_product.specs:
             key_specs = []
             if main_product.specs.get('cpu'):
-                key_specs.append(f"{main_product.specs['cpu']} processor")
+                key_specs.append(f"מעבד {main_product.specs['cpu']}")
             if main_product.specs.get('ram_gb'):
-                key_specs.append(f"{main_product.specs['ram_gb']}GB RAM")
+                key_specs.append(f"{main_product.specs['ram_gb']}GB זיכרון RAM")
             if main_product.specs.get('storage_gb'):
-                key_specs.append(f"{main_product.specs['storage_gb']}GB storage")
+                key_specs.append(f"{main_product.specs['storage_gb']}GB אחסון")
             
             if key_specs:
-                response += f"It features {', '.join(key_specs)}, which provides {requirements.get('description', 'excellent performance')}. "
+                response += f"הוא כולל {', '.join(key_specs)}, שמספקים {requirements.get('description', 'ביצועים מצוינים')}. "
         
         if upsell_product:
-            response += f"\n\nTo complete your setup, I'd recommend adding the {upsell_product.name} "
-            response += f"({upsell_product.price} ILS). It's a great complement to your new computer!"
+            response += f"\n\nכדי להשלים את המערכת שלך, אמליץ להוסיף את {upsell_product.name} "
+            response += f"({upsell_product.price} ₪). זה השלמה מצוינת למחשב החדש שלך!"
         
-        return response
+        return response 
     
     def _get_or_create_session(self, session_id: str) -> ChatSession:
         """Get existing session or create new one"""

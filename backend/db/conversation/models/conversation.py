@@ -9,7 +9,7 @@ Contains all models related to customer conversations:
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from .base import Base
 
 
@@ -40,7 +40,7 @@ class ChatSession(Base):
     customer_type = Column(String(50), nullable=True)
     
     # Timestamps for session lifecycle
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     ended_at = Column(DateTime, nullable=True)
     
     # Relationships to other tables
@@ -81,7 +81,7 @@ class ChatMessage(Base):
     content = Column(Text, nullable=False)
     
     # Timestamp with index for chronological sorting
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Relationship back to the session
     session = relationship("ChatSession", back_populates="messages")
@@ -126,7 +126,7 @@ class Recommendation(Base):
     recommendation_text = Column(Text, nullable=True)
     
     # Timestamp indexed for analytics (daily recommendations chart)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Relationships to products
     # We specify foreign_keys because there are multiple FKs to products table
