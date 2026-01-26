@@ -1,13 +1,13 @@
-import { useChat } from './hooks/useChat';
-import { formatPrice } from './utils/formatters';
+/**
+ * App Component
+ * 
+ * Main application entry point - renders ChatScreen
+ */
+
+import ChatScreen from './pages/ChatScreen';
 
 function App() {
-  const { messages } = useChat();
-  
-  console.log('Chat initialized!');
-  console.log('Price test:', formatPrice(4999));
-  
-  return <div>SmartByte Ready!</div>;
+  return <ChatScreen />;
 }
 
 export default App;

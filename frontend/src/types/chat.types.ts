@@ -6,6 +6,8 @@
 
 import type { Product, CustomerType } from './common.types';
 
+export type { Product, CustomerType } from './common.types';
+
 /**
  * Message role - who sent the message
  */
