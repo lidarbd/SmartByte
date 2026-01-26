@@ -5,8 +5,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import type { ChatState, ChatSession, Message } from '../types/chat.types';
-import type { Product } from '../types/common.types';
+import type { ChatState, ChatSession, Message, Product } from '../types/chat.types';
 import { sendChatMessage } from '../services/chatService';
 import { getOrCreateSessionId, saveToStorage, loadFromStorage } from '../utils/storage';
 import { STORAGE_KEYS, UI_CONFIG } from '../constants/config';
