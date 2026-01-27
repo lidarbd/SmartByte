@@ -160,7 +160,14 @@ class ConversationFlowManager:
 
         Why is this important? We want to catch off-topic conversations early
         and redirect gently before spending time on product matching.
+
+        Strategy:
+        1. Check ONLY the current message for product keywords
+        2. Also accept messages with only numbers (likely answering our budget/spec questions)
+        3. If neither found, the user has gone off-topic - redirect them
         """
+        import re
+
         product_keywords = [
             # Computer related
             'computer', 'laptop', 'desktop', 'pc', 'notebook', 'tower',
@@ -187,10 +194,22 @@ class ConversationFlowManager:
             'עכבר', 'מקלדת', 'מסך', 'אוזניות', 'תיק'
         ]
 
-        # Check both current message and full context
-        text_to_check = (current_message + " " + full_context).lower()
+        # Check ONLY the current message to detect topic changes
+        current_message_lower = current_message.lower()
 
-        return any(keyword in text_to_check for keyword in product_keywords)
+        # First check: Does it have product keywords?
+        if any(keyword in current_message_lower for keyword in product_keywords):
+            return True
+
+        # Second check: Is it just a number (likely answering our question)?
+        # Match numbers like: "5000", "5000 שקל", "5,000", "16GB", etc.
+        # This handles cases where user answers "What's your budget?" with just "5000"
+        number_pattern = r'\d{3,6}'  # 3-6 digit numbers (typical for budgets/specs)
+        if re.search(number_pattern, current_message):
+            return True
+
+        # No keywords and no numbers - likely off-topic
+        return False
 
     def _extract_conversation_info(self, text: str) -> Dict[str, any]:
         """
