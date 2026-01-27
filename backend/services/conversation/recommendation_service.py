@@ -97,6 +97,23 @@ class RecommendationService:
                 conversation_history=history,
                 identified_customer_type=session.customer_type
             )
+
+            # LOG: Print conversation state for debugging
+            print("=" * 80)
+            print("CONVERSATION STATE ANALYSIS:")
+            print(f"  Stage: {conversation_state['stage']}")
+            print(f"  Missing Info: {conversation_state['missing_info']}")
+            print(f"  Has Enough Info: {conversation_state['has_enough_info']}")
+            print(f"  Needs Clarification: {conversation_state['needs_clarification']}")
+            print(f"  Suggested Question: {conversation_state.get('suggested_question', 'None')}")
+            print(f"  Is Product Inquiry: {conversation_state['is_product_inquiry']}")
+            print(f"  Redirect Needed: {conversation_state['redirect_needed']}")
+            if 'extracted_info' in conversation_state:
+                print(f"  Extracted Info:")
+                print(f"    - Use Case: {conversation_state['extracted_info'].get('has_use_case')} - {conversation_state['extracted_info'].get('use_case_keywords')}")
+                print(f"    - Budget: {conversation_state['extracted_info'].get('has_budget')} - {conversation_state['extracted_info'].get('budget_amount')}")
+                print(f"    - Product Type: {conversation_state['extracted_info'].get('has_product_type')} - {conversation_state['extracted_info'].get('product_type')}")
+            print("=" * 80)
             
             # Step 5: Handle based on conversation state
             if conversation_state['redirect_needed']:
@@ -116,7 +133,11 @@ class RecommendationService:
                 conversation_history=[msg['content'] for msg in history if msg['role'] == 'user']
             )
             customer_type, requirements, clarifying_question_from_identifier = customer_type_result
-            
+
+            print(f"\nCUSTOMER TYPE RESULT:")
+            print(f"   Type: {customer_type}")
+            print(f"   Question from identifier: {clarifying_question_from_identifier}")
+
             # Update session with customer type if changed
             if session.customer_type != customer_type.value:
                 self.session_repo.update_customer_type(session_id, customer_type.value)
@@ -124,13 +145,18 @@ class RecommendationService:
             # Step 7: Check if we need to ask clarifying questions
             if conversation_state['needs_clarification']:
                 # We don't have enough information yet - ask questions
+                print(f"\nNEEDS CLARIFICATION - Asking follow-up questions")
+                print(f"   Missing: {conversation_state['missing_info']}")
+
                 response = self._generate_clarifying_response(
                     conversation_state=conversation_state,
                     customer_type=customer_type,
                     user_message=user_message,
                     history=history
                 )
-                
+
+                print(f"   Generated Response: {response[:100]}...")
+
                 return self._save_and_return_response(
                     session=session,
                     response=response,
@@ -138,14 +164,19 @@ class RecommendationService:
                     products=[],
                     upsell=None
                 )
-            
+
+            # If we got here, we have enough info to recommend
+            print(f"\nENOUGH INFO - Proceeding to product recommendation")
+
             # Step 8: We have enough info - find matching products
             extracted_info = conversation_state['extracted_info']
-            
+
             products = self.product_matcher.find_matching_products(
                 customer_type=customer_type.value,
                 message=user_message,
                 max_budget=extracted_info.get('budget_amount'),
+                product_type=extracted_info.get('product_type'),
+                category=extracted_info.get('category'),
                 limit=5
             )
             
