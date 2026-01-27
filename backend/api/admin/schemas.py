@@ -185,6 +185,36 @@ class SessionDetailResponse(BaseModel):
     recommendations: List[RecommendationDetail] = Field(default=[], description="All recommendations made")
 
 
+# ==================== Authentication Schemas ====================
+
+class LoginRequest(BaseModel):
+    """
+    Request schema for POST /api/admin/login
+
+    Example:
+        {
+            "password": "admin123"
+        }
+    """
+    password: str = Field(..., description="Admin password")
+
+
+class LoginResponse(BaseModel):
+    """
+    Response schema for POST /api/admin/login
+
+    Returns authentication token and expiration time.
+
+    Example:
+        {
+            "token": "abc123...",
+            "expires_at": "2025-01-28T10:00:00Z"
+        }
+    """
+    token: str = Field(..., description="Authentication token")
+    expires_at: str = Field(..., description="Token expiration timestamp (ISO format)")
+
+
 # ==================== CSV Upload Schemas ====================
 
 class CSVUploadResponse(BaseModel):
