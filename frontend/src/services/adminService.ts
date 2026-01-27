@@ -152,8 +152,46 @@ export async function getSessionDetails(sessionId: string): Promise<any> {
 }
 
 /**
+ * Upload CSV file with products
+ *
+ * @param file - CSV file to upload
+ * @returns Promise with upload statistics
+ * @throws Error if upload fails
+ */
+export async function uploadProductsCSV(file: File): Promise<{
+  message: string;
+  statistics: {
+    total_rows: number;
+    loaded: number;
+    updated: number;
+    skipped: number;
+    errors: string[];
+  };
+}> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post(
+      `${API_CONFIG.ENDPOINTS.ADMIN_PRODUCTS}/upload`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    const errorMessage = handleApiError(error);
+    throw new Error(errorMessage);
+  }
+}
+
+/**
  * Test admin API connection
- * 
+ *
  * @returns Promise with boolean indicating if admin API is reachable
  */
 export async function testAdminConnection(): Promise<boolean> {

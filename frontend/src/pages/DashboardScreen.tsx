@@ -10,6 +10,7 @@ import StatsCard from '../components/admin/StatsCard';
 import SimpleLineChart from '../components/admin/SimpleLineChart';
 import SimplePieChart from '../components/admin/SimplePieChart';
 import SessionTable from '../components/admin/SessionTable';
+import FileUpload from '../components/admin/FileUpload';
 import {
   getDailyConsultations,
   getCustomerSegments,
@@ -154,6 +155,11 @@ export default function DashboardScreen() {
             data={customerData}
             title="התפלגות סוגי לקוחות"
           />
+        </div>
+
+        {/* File Upload Section */}
+        <div className="mb-8">
+          <FileUpload />
         </div>
 
         {/* Session History Table */}
