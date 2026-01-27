@@ -10,13 +10,12 @@ import StatsCard from '../components/admin/StatsCard';
 import SimpleLineChart from '../components/admin/SimpleLineChart';
 import SimplePieChart from '../components/admin/SimplePieChart';
 import SessionTable from '../components/admin/SessionTable';
-import { 
-  getDashboardStats,
+import {
   getDailyConsultations,
   getCustomerSegments,
-  getSessionHistory 
+  getSessionHistory
 } from '../services/adminService';
-import type { DashboardStats, SessionHistory } from '../types/admin.types';
+import type { SessionHistory } from '../types/admin.types';
 
 // Mock data for development (used as fallback if API fails)
 const mockDailyData = [
@@ -38,7 +37,6 @@ const mockCustomerTypes = [
 ];
 
 export default function DashboardScreen() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [dailyData, setDailyData] = useState<any[]>(mockDailyData);
   const [customerData, setCustomerData] = useState<any[]>(mockCustomerTypes);
   const [sessions, setSessions] = useState<SessionHistory[]>([]);
@@ -56,24 +54,17 @@ export default function DashboardScreen() {
       
       // Load all data in parallel
       const [
-        statsData,
         dailyConsultations,
         customerSegments,
         sessionHistoryData
       ] = await Promise.all([
-        getDashboardStats().catch(() => null),
-        getDailyConsultations(7).catch(() => []), // Last 7 days
+        getDailyConsultations().catch(() => []),
         getCustomerSegments().catch(() => []),
         getSessionHistory({
           page: 1,
           per_page: 20,
         }).catch(() => ({ sessions: [], total: 0, page: 1, per_page: 20, total_pages: 0 })),
       ]);
-
-      // Set stats
-      if (statsData) {
-        setStats(statsData);
-      }
 
       // Transform and set daily data
       if (dailyConsultations && dailyConsultations.length > 0) {
@@ -128,30 +119,27 @@ export default function DashboardScreen() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             title="סה״כ שיחות"
-            value={stats?.total_sessions || 156}
+            value={customerData.reduce((sum, item) => sum + item.value, 0)}
             icon="💬"
             color="blue"
-            trend={{ value: 12, isPositive: true }}
           />
           <StatsCard
             title="המלצות שניתנו"
-            value={stats?.total_recommendations || 89}
+            value={dailyData.reduce((sum, item) => sum + item.value, 0)}
             icon="🎯"
             color="green"
-            trend={{ value: 8, isPositive: true }}
           />
           <StatsCard
-            title="ממוצע הודעות"
-            value={stats?.avg_messages_per_session?.toFixed(1) || '5.2'}
+            title="שיחות היום"
+            value={dailyData.length > 0 ? dailyData[dailyData.length - 1].value : 0}
             icon="📊"
             color="purple"
           />
           <StatsCard
-            title="שיעור המרה"
-            value={stats?.conversion_rate ? `${stats.conversion_rate}%` : '94%'}
+            title="סוגי לקוחות"
+            value={customerData.length}
             icon="⭐"
             color="orange"
-            trend={{ value: 3, isPositive: true }}
           />
         </div>
 

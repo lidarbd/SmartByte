@@ -8,12 +8,12 @@ import type { CustomerType } from './common.types';
 
 /**
  * Statistics summary for the dashboard
+ * Matches the backend MetricsResponse schema
  */
 export interface DashboardStats {
-  total_sessions: number;
-  total_recommendations: number;
-  avg_messages_per_session: number;
-  conversion_rate: number; // Percentage of sessions that got recommendations
+  daily_consultations: DailyConsultation[];
+  top_recommended_products: ProductStats[];
+  customer_segmentation: CustomerSegment[];
 }
 
 /**
@@ -26,10 +26,11 @@ export interface DailyConsultation {
 
 /**
  * Product recommendation statistics for bar chart
+ * Matches the backend TopProduct schema
  */
 export interface ProductStats {
-  product_id: number;
   product_name: string;
+  brand: string;
   recommendation_count: number;
 }
 
@@ -44,14 +45,15 @@ export interface CustomerSegment {
 
 /**
  * Single session in the history table
+ * Matches the backend SessionSummary schema
  */
 export interface SessionHistory {
   session_id: string;
-  customer_type: CustomerType;
+  customer_type: string | null;
   message_count: number;
-  recommended_products: number;
-  created_at: string; // ISO datetime string
-  duration_seconds?: number;
+  recommendation_count: number;
+  started_at: string; // ISO datetime string
+  ended_at: string | null; // ISO datetime string
 }
 
 /**
