@@ -3,7 +3,9 @@ Admin API Endpoints
 """
 
 import math
-from fastapi import APIRouter, Depends, status, Query, UploadFile, File
+import os
+import secrets
+from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import Optional
@@ -29,7 +31,9 @@ from .schemas import (
     SessionDetailResponse,
     ChatMessageDetail,
     RecommendationDetail,
-    CSVUploadResponse
+    CSVUploadResponse,
+    LoginRequest,
+    LoginResponse
 )
 from .exceptions import (
     MetricsCalculationError,
@@ -49,6 +53,51 @@ router = APIRouter(
     responses={500: {"description": "Internal server error"}}
 )
 
+# Load admin password from environment
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+# ==================== POST /api/admin/login ====================
+
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Admin login"
+)
+async def admin_login(request: LoginRequest) -> LoginResponse:
+    """
+    Admin login endpoint.
+
+    Validates password and returns authentication token.
+
+    Args:
+        request: Login credentials
+
+    Returns:
+        Authentication token and expiration
+
+    Raises:
+        HTTPException: If password is incorrect
+    """
+    # Validate password
+    if request.password != ADMIN_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="סיסמה שגויה"
+        )
+
+    # Generate secure token
+    token = secrets.token_urlsafe(32)
+
+    # Set expiration (24 hours from now)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    return LoginResponse(
+        token=token,
+        expires_at=expires_at.isoformat().replace('+00:00', 'Z')
+    )
+
+
 # ==================== GET /api/admin/products ====================
 
 @router.get(
@@ -63,14 +112,14 @@ async def get_products(
 ):
     """
     Get a paginated list of all products in the database.
-    
+
     This is useful for verifying that CSV uploads worked correctly
     and for browsing the product catalog.
     """
     try:
         # Calculate offset for pagination
         offset = (page - 1) * page_size
-        
+
         # Query products with pagination
         products = (
             db.query(Product)
@@ -79,10 +128,10 @@ async def get_products(
             .limit(page_size)
             .all()
         )
-        
+
         # Get total count
         total = db.query(func.count(Product.id)).scalar()
-        
+
         # Convert to list of dictionaries for response
         products_list = []
         for product in products:
@@ -99,7 +148,7 @@ async def get_products(
                 "description": product.description
             }
             products_list.append(product_dict)
-        
+
         return {
             "products": products_list,
             "total": total,
@@ -107,7 +156,7 @@ async def get_products(
             "page_size": page_size,
             "total_pages": math.ceil(total / page_size) if page_size > 0 else 0
         }
-    
+
     except Exception as e:
         # Log the error for debugging purposes
         print(f"Error retrieving products: {str(e)}")
@@ -126,11 +175,11 @@ async def get_products(
 )
 async def get_metrics(db: Session = Depends(get_db)) -> MetricsResponse:
     """Calculate and return system metrics."""
-    
+
     try:
         # Daily Consultations (last 30 days)
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        
+
         daily_query = (
             db.query(
                 func.date(ChatSession.started_at).label('date'),
@@ -141,12 +190,12 @@ async def get_metrics(db: Session = Depends(get_db)) -> MetricsResponse:
             .order_by(func.date(ChatSession.started_at))
             .all()
         )
-        
+
         daily_consultations = [
             DailyConsultation(date=str(row.date), count=row.count)
             for row in daily_query
         ]
-        
+
         # Top Recommended Products
         top_products_query = (
             db.query(
@@ -160,7 +209,7 @@ async def get_metrics(db: Session = Depends(get_db)) -> MetricsResponse:
             .limit(10)
             .all()
         )
-        
+
         top_recommended_products = [
             TopProduct(
                 product_name=row.product_name,
@@ -169,7 +218,7 @@ async def get_metrics(db: Session = Depends(get_db)) -> MetricsResponse:
             )
             for row in top_products_query
         ]
-        
+
         # Customer Segmentation
         segmentation_query = (
             db.query(
@@ -180,9 +229,9 @@ async def get_metrics(db: Session = Depends(get_db)) -> MetricsResponse:
             .group_by(ChatSession.customer_type)
             .all()
         )
-        
+
         total_customers = sum(row.count for row in segmentation_query)
-        
+
         customer_segmentation = [
             CustomerSegment(
                 customer_type=row.customer_type,
@@ -191,13 +240,13 @@ async def get_metrics(db: Session = Depends(get_db)) -> MetricsResponse:
             )
             for row in segmentation_query
         ]
-        
+
         return MetricsResponse(
             daily_consultations=daily_consultations,
             top_recommended_products=top_recommended_products,
             customer_segmentation=customer_segmentation
         )
-    
+
     except Exception as e:
         # Log the error for debugging
         print(f"Error calculating metrics: {str(e)}")
@@ -220,11 +269,11 @@ async def get_sessions(
     db: Session = Depends(get_db)
 ) -> SessionsListResponse:
     """List conversation sessions with pagination and search."""
-    
+
     try:
         # Build base query
         query = db.query(ChatSession)
-        
+
         # Apply search filter if provided
         if search and search.strip():
             search_term = f"%{search.strip()}%"
@@ -232,10 +281,10 @@ async def get_sessions(
                 (ChatSession.session_id.ilike(search_term)) |
                 (ChatSession.customer_type.ilike(search_term))
             )
-        
+
         # Get total count for pagination
         total = query.count()
-        
+
         # Apply pagination
         offset = (page - 1) * page_size
         sessions = (
@@ -245,7 +294,7 @@ async def get_sessions(
             .limit(page_size)
             .all()
         )
-        
+
         # Build session summaries with message and recommendation counts
         session_summaries = []
         for session in sessions:
@@ -254,13 +303,13 @@ async def get_sessions(
                 .filter(ChatMessage.session_id == session.id)
                 .scalar()
             )
-            
+
             recommendation_count = (
                 db.query(func.count(Recommendation.id))
                 .filter(Recommendation.session_id == session.id)
                 .scalar()
             )
-            
+
             session_summaries.append(
                 SessionSummary(
                     session_id=session.session_id,
@@ -271,9 +320,9 @@ async def get_sessions(
                     recommendation_count=recommendation_count
                 )
             )
-        
+
         total_pages = math.ceil(total / page_size) if page_size > 0 else 0
-        
+
         return SessionsListResponse(
             sessions=session_summaries,
             total=total,
@@ -281,7 +330,7 @@ async def get_sessions(
             page_size=page_size,
             total_pages=total_pages
         )
-    
+
     except Exception as e:
         print(f"Error querying sessions: {str(e)}")
         raise SessionQueryError(f"Failed to retrieve sessions: {str(e)}")
@@ -300,7 +349,7 @@ async def get_session_detail(
     db: Session = Depends(get_db)
 ) -> SessionDetailResponse:
     """Get complete details for a specific session including all messages and recommendations."""
-    
+
     try:
         # Find the requested session
         session = (
@@ -308,11 +357,11 @@ async def get_session_detail(
             .filter(ChatSession.session_id == session_id)
             .first()
         )
-        
+
         # Raise specific exception if session not found
         if not session:
             raise SessionNotFoundError(session_id)
-        
+
         # Load all messages for this session
         messages_query = (
             db.query(ChatMessage)
@@ -320,7 +369,7 @@ async def get_session_detail(
             .order_by(ChatMessage.timestamp)
             .all()
         )
-        
+
         messages = [
             ChatMessageDetail(
                 role=msg.role,
@@ -329,7 +378,7 @@ async def get_session_detail(
             )
             for msg in messages_query
         ]
-        
+
         # Load all recommendations with product details
         recommendations_query = (
             db.query(
@@ -341,7 +390,7 @@ async def get_session_detail(
             .filter(Recommendation.session_id == session.id)
             .all()
         )
-        
+
         recommendations = []
         for rec, product_name, product_price in recommendations_query:
             # Get upsell product name if exists
@@ -354,7 +403,7 @@ async def get_session_detail(
                 )
                 if upsell_product:
                     upsell_name = upsell_product.name
-            
+
             recommendations.append(
                 RecommendationDetail(
                     product_id=rec.product_id,
@@ -366,7 +415,7 @@ async def get_session_detail(
                     timestamp=rec.created_at
                 )
             )
-        
+
         return SessionDetailResponse(
             session_id=session.session_id,
             customer_type=session.customer_type,
@@ -375,7 +424,7 @@ async def get_session_detail(
             messages=messages,
             recommendations=recommendations
         )
-    
+
     except SessionNotFoundError:
         # Re-raise our custom exception as-is
         raise
@@ -397,19 +446,19 @@ async def upload_products(
     db: Session = Depends(get_db)
 ) -> CSVUploadResponse:
     """Handle CSV file upload and import products into the database."""
-    
+
     try:
         # Validate file extension
         if not file.filename.endswith('.csv'):
             raise InvalidFileTypeError(file.filename)
-        
+
         # Read and decode file content
         try:
             content = await file.read()
             content_str = content.decode('utf-8')
         except Exception as e:
             raise FileReadError(str(e))
-        
+
         # Process CSV using the CSVLoader service
         try:
             loader = CSVLoader(db)
@@ -420,7 +469,7 @@ async def upload_products(
         except CSVParsingError as e:
             # Convert service exception to our admin exception
             raise CSVProcessingError(f"Invalid CSV format: {str(e)}")
-        
+
         # Build success message based on results
         if stats['loaded'] == 0 and stats.get('updated', 0) == 0:
             message = "No products were loaded. Check the errors list."
@@ -428,12 +477,12 @@ async def upload_products(
             message = "CSV processed successfully with no errors"
         else:
             message = f"CSV processed with {len(stats['errors'])} errors"
-        
+
         return CSVUploadResponse(
             message=message,
             statistics=stats
         )
-    
+
     except (InvalidFileTypeError, FileReadError, CSVProcessingError):
         # Re-raise our custom exceptions as-is
         raise
