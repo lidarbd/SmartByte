@@ -40,16 +40,16 @@ export async function adminLogin(request: LoginRequest): Promise<LoginResponse> 
 
 /**
  * Get dashboard statistics summary
- * 
+ *
  * @returns Promise with dashboard stats
  * @throws Error if request fails
  */
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
     const response = await apiClient.get<DashboardStats>(
-      API_CONFIG.ENDPOINTS.ADMIN_STATS
+      API_CONFIG.ENDPOINTS.ADMIN_METRICS
     );
-    
+
     return response.data;
   } catch (error) {
     const errorMessage = handleApiError(error);
@@ -59,21 +59,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 /**
  * Get daily consultations data for line chart
- * 
- * @param days - Number of days to fetch (default: 30)
- * @returns Promise with daily consultation data
+ *
+ * @returns Promise with daily consultation data (last 30 days)
  * @throws Error if request fails
  */
-export async function getDailyConsultations(
-  days: number = 30
-): Promise<DailyConsultation[]> {
+export async function getDailyConsultations(): Promise<DailyConsultation[]> {
   try {
-    const response = await apiClient.get<DailyConsultation[]>(
-      `${API_CONFIG.ENDPOINTS.ADMIN_STATS}/daily`,
-      { params: { days } }
-    );
-    
-    return response.data;
+    // Backend returns all metrics in one endpoint
+    const stats = await getDashboardStats();
+    return stats.daily_consultations;
   } catch (error) {
     const errorMessage = handleApiError(error);
     throw new Error(errorMessage);
@@ -82,19 +76,15 @@ export async function getDailyConsultations(
 
 /**
  * Get product recommendation statistics for bar chart
- * 
- * @param limit - Number of top products to fetch (default: 10)
- * @returns Promise with product stats
+ *
+ * @returns Promise with product stats (top 10 products)
  * @throws Error if request fails
  */
-export async function getProductStats(limit: number = 10): Promise<ProductStats[]> {
+export async function getProductStats(): Promise<ProductStats[]> {
   try {
-    const response = await apiClient.get<ProductStats[]>(
-      `${API_CONFIG.ENDPOINTS.ADMIN_PRODUCTS}/stats`,
-      { params: { limit } }
-    );
-    
-    return response.data;
+    // Backend returns all metrics in one endpoint
+    const stats = await getDashboardStats();
+    return stats.top_recommended_products;
   } catch (error) {
     const errorMessage = handleApiError(error);
     throw new Error(errorMessage);
@@ -109,11 +99,9 @@ export async function getProductStats(limit: number = 10): Promise<ProductStats[
  */
 export async function getCustomerSegments(): Promise<CustomerSegment[]> {
   try {
-    const response = await apiClient.get<CustomerSegment[]>(
-      `${API_CONFIG.ENDPOINTS.ADMIN_STATS}/segments`
-    );
-    
-    return response.data;
+    // Backend returns all metrics in one endpoint
+    const stats = await getDashboardStats();
+    return stats.customer_segmentation;
   } catch (error) {
     const errorMessage = handleApiError(error);
     throw new Error(errorMessage);
@@ -170,7 +158,7 @@ export async function getSessionDetails(sessionId: string): Promise<any> {
  */
 export async function testAdminConnection(): Promise<boolean> {
   try {
-    await apiClient.get(API_CONFIG.ENDPOINTS.ADMIN_STATS);
+    await apiClient.get(API_CONFIG.ENDPOINTS.ADMIN_METRICS);
     return true;
   } catch {
     return false;

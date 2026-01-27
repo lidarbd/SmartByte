@@ -34,7 +34,7 @@ export default function SessionTable({ sessions, isLoading }: SessionTableProps)
   });
 
   // Get unique customer types for filter
-  const customerTypes = ['all', ...new Set(sessions.map(s => s.customer_type).filter(Boolean))];
+  const customerTypes = ['all', ...new Set(sessions.map(s => s.customer_type).filter((type): type is string => type !== null))];
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -115,10 +115,10 @@ export default function SessionTable({ sessions, isLoading }: SessionTableProps)
                     {session.message_count}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {session.recommended_products}
+                    {session.recommendation_count}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatDate(session.created_at, 'FULL')}
+                    {formatDate(session.started_at, 'FULL')}
                   </td>
                 </tr>
               ))}

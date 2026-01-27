@@ -35,9 +35,9 @@ class CustomerSegment(BaseModel):
 class MetricsResponse(BaseModel):
     """
     Response schema for GET /api/admin/metrics
-    
+
     Provides analytics data for the admin dashboard.
-    
+
     Example:
         {
             "daily_consultations": [
@@ -67,12 +67,12 @@ class MetricsResponse(BaseModel):
         default=[],
         description="Consultation counts by day for the last 30 days"
     )
-    
+
     top_recommended_products: List[TopProduct] = Field(
         default=[],
         description="Top 10 most recommended products"
     )
-    
+
     customer_segmentation: List[CustomerSegment] = Field(
         default=[],
         description="Distribution of customers by type"

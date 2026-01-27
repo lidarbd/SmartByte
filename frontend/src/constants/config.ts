@@ -18,7 +18,7 @@ export const API_CONFIG = {
     
     // Admin endpoints
     ADMIN_LOGIN: '/api/admin/login',
-    ADMIN_STATS: '/api/admin/stats',
+    ADMIN_METRICS: '/api/admin/metrics',
     ADMIN_SESSIONS: '/api/admin/sessions',
     ADMIN_PRODUCTS: '/api/admin/products',
   },
