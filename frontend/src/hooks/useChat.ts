@@ -7,7 +7,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ChatState, ChatSession, Message, Product } from '../types/chat.types';
 import { sendChatMessage } from '../services/chatService';
-import { getOrCreateSessionId, saveToStorage, loadFromStorage } from '../utils/storage';
+import { getOrCreateSessionId, saveToStorage, loadFromStorage, generateSessionId } from '../utils/storage';
 import { STORAGE_KEYS, UI_CONFIG } from '../constants/config';
 
 /**
@@ -151,8 +151,10 @@ export function useChat() {
    * Clear the chat session
    */
   const clearChat = useCallback(() => {
-    const sessionId = getOrCreateSessionId();
-    
+    // Generate a NEW session ID (don't reuse the old one!)
+    const sessionId = generateSessionId();
+    saveToStorage(STORAGE_KEYS.SESSION_ID, sessionId);
+
     const newSession: ChatSession = {
       sessionId,
       messages: [],

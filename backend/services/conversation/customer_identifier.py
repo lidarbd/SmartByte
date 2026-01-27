@@ -172,27 +172,38 @@ class CustomerIdentifier:
         """
         # Combine all messages for analysis
         all_text = " ".join(conversation_history + [current_message]).lower()
-        
+
+        print(f"\nCUSTOMER IDENTIFIER:")
+        print(f"   Full text: '{all_text}'")
+
         # Score each customer type
         scores = self._score_customer_types(all_text)
-        
+
+        print(f"   Scores: {scores}")
+
         # Get best match
         best_type = max(scores, key=scores.get)
         best_score = scores[best_type]
+
+        print(f"   Best Type: {best_type} (score: {best_score})")
         
         # If score is too low, we need more information
         if best_score < 2:
             # Not enough information to identify
             question = self._get_clarifying_question(current_message, all_text)
+            print(f"   Score too low - returning OTHER with question: {question}")
             return CustomerType.OTHER, self.REQUIREMENTS_MAP[CustomerType.OTHER], question
-        
+
         # Get requirements for this customer type
         requirements = self.REQUIREMENTS_MAP[best_type]
-        
+
         # Check if we have enough specifics (budget, product type preference)
         needs_clarification = self._check_missing_info(all_text)
         question = needs_clarification if needs_clarification else None
-        
+
+        print(f"   Needs clarification from identifier: {question}")
+        print(f"   Returning: {best_type}")
+
         return best_type, requirements, question
     
     def _score_customer_types(self, text: str) -> Dict[CustomerType, int]:

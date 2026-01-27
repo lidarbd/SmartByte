@@ -19,10 +19,12 @@ export async function sendMessage(
   request: SendMessageRequest
 ): Promise<SendMessageResponse> {
   try {
+    console.log(`Sending message to API: ${request.message}`);
     const response = await apiClient.post<SendMessageResponse>(
       API_CONFIG.ENDPOINTS.SEND_MESSAGE,
       request
     );
+    console.log(`Received response from API: ${response.data.assistant_message}`);
     
     return response.data;
   } catch (error) {
