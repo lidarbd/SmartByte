@@ -195,7 +195,7 @@ Production monitoring integrates Prometheus for metrics collection, Grafana for 
 ### API Testing
 Use included Postman collection:
 ```bash
-postman collection run SmartByte_Tests.postman_collection.json
+postman collection run "Postman/SmartByte API.postman_collection.json"
 ```
 ---
 

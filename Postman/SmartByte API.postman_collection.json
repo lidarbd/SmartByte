@@ -1,0 +1,1490 @@
+{
+  "info": {
+    "_postman_id": "b6bb4b0b-57cb-4dea-b153-155ef42e0e2d",
+    "name": "SmartByte API",
+    "description": "Complete API collection for testing SmartByte backend.\n\n## How to use:\n1. Import this collection into Postman\n2. Make sure your backend is running (docker compose up or uvicorn)\n3. Test endpoints in order:\n   - First: Upload CSV to load products\n   - Then: Test conversation\n   - Finally: Check admin endpoints\n\n## Base URL:\n- Local: http://localhost:8000\n- Docker: http://localhost:8000",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "24642071"
+  },
+  "item": [
+    {
+      "name": "0. Health & Setup",
+      "item": [
+        {
+          "name": "0.1 Root - API Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Get basic API information and list of available endpoints.\n\n**Expected Response:**\n- Status: 200 OK\n- Body: JSON with API info and endpoint list"
+          },
+          "response": []
+        },
+        {
+          "name": "0.2 Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Check if API is healthy.\n\n**Expected Response:**\n- Status: 200 OK\n- Body: {\"status\": \"healthy\", ...}"
+          },
+          "response": []
+        },
+        {
+          "name": "0.3 Conversation Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/conversation/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "conversation",
+                "health"
+              ]
+            },
+            "description": "Check conversation service health."
+          },
+          "response": []
+        },
+        {
+          "name": "0.4 Admin Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "health"
+              ]
+            },
+            "description": "Check admin service health."
+          },
+          "response": []
+        }
+      ],
+      "description": "Basic health checks and setup endpoints"
+    },
+    {
+      "name": "1. Admin - Products Upload",
+      "item": [
+        {
+          "name": "1.1 Upload Computers CSV",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "description": "Select products_computers_lenovo_dell.csv",
+                  "type": "file",
+                  "uuid": "44ee662d-4c4f-456e-b3f3-f88936c0df3f",
+                  "src": "postman-cloud:///1f0f9e1e-b035-4f70-947c-e5002a15fc7f"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/products/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "products",
+                "upload"
+              ]
+            },
+            "description": "Upload computer products from CSV.\n\n**How to test:**\n1. Click on 'Body' tab\n2. Select 'form-data'\n3. For the 'file' key, click 'Select Files'\n4. Choose 'products_computers_lenovo_dell.csv'\n5. Click Send\n\n**Expected Response:**\n```json\n{\n  \"message\": \"CSV processed successfully\",\n  \"statistics\": {\n    \"total_rows\": 21,\n    \"loaded\": 21,\n    \"updated\": 0,\n    \"skipped\": 0,\n    \"errors\": []\n  }\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Upload Accessories CSV",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "Select products_accessories.csv",
+                  "src": "postman-cloud:///1f0f9e43-5189-4ab0-a60e-0f0cf498e2cf"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/products/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "products",
+                "upload"
+              ]
+            },
+            "description": "Upload accessory products from CSV.\n\n**How to test:**\n1. Select 'products_accessories.csv' file\n2. Click Send\n\n**Expected Response:**\n```json\n{\n  \"message\": \"CSV processed successfully\",\n  \"statistics\": {\n    \"total_rows\": 8,\n    \"loaded\": 8,\n    \"updated\": 0,\n    \"skipped\": 0,\n    \"errors\": []\n  }\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Upload products from CSV file.\n\n⚠️ **RUN THIS FIRST** before testing conversation!"
+    },
+    {
+      "name": "2. Conversation API",
+      "item": [
+        {
+          "name": "01 - שיחה פשוטה",
+          "item": [
+            {
+              "name": "01 - שלום, אני צריך מחשב",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "// Create a new session ID if it doesn't exist",
+                      "if (!pm.collectionVariables.get(\"session_id\")) {",
+                      "    const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);",
+                      "    pm.collectionVariables.set(\"session_id\", sessionId);",
+                      "    console.log(\"Created new session: \" + sessionId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Response has assistant_message\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData).to.have.property('assistant_message');",
+                      "});",
+                      "",
+                      "pm.test(\"Response is in Hebrew\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    // Check if response contains Hebrew characters",
+                      "    var hebrewRegex = /[֐-׿]/;",
+                      "    pm.expect(hebrewRegex.test(jsonData.assistant_message)).to.be.true;",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{session_id}}\",\n    \"message\": \"שלום, אני צריך מחשב\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "בקשה ראשונה - המערכת אמורה לשאול למה המחשב נחוץ"
+              },
+              "response": []
+            },
+            {
+              "name": "02 - ללימודים באוניברסיטה",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Customer type identified as Student\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.customer_type).to.eql(\"Student\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{session_id}}\",\n    \"message\": \"ללימודים באוניברסיטה\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "תשובה על use case - המערכת אמורה לשאול על סוג מחשב (נייד/נייח) או תקציב"
+              },
+              "response": []
+            },
+            {
+              "name": "03 - מחשב נייד, תקציב 4000 שקל",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Received product recommendations\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.recommended_items).to.be.an('array');",
+                      "    pm.expect(jsonData.recommended_items.length).to.be.above(0);",
+                      "});",
+                      "",
+                      "pm.test(\"Products within budget\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    jsonData.recommended_items.forEach(function(item) {",
+                      "        pm.expect(item.price).to.be.at.most(4000);",
+                      "    });",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{session_id}}\",\n    \"message\": \"מחשב נייד, תקציב 4000 שקל\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "מידע מלא - המערכת אמורה להמליץ על מוצרים"
+              },
+              "response": []
+            }
+          ],
+          "description": "תרחיש שיחה פשוט ומלא - סטודנט מחפש מחשב נייד"
+        },
+        {
+          "name": "02 - גיימר",
+          "item": [
+            {
+              "name": "01 - אני מחפש מחשב לגיימינג",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "// Create a new session for gamer scenario",
+                      "const sessionId = 'gamer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);",
+                      "pm.collectionVariables.set(\"gamer_session_id\", sessionId);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Customer type identified as Gamer\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.customer_type).to.include(\"Gamer\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{gamer_session_id}}\",\n    \"message\": \"אני מחפש מחשב לגיימינג, צריך משהו שירוץ את Valorant וFortnite בהגדרות גבוהות\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "גיימר עם דרישות ברורות"
+              },
+              "response": []
+            },
+            {
+              "name": "02 - התקציב שלי עד 7000 שקל",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Recommended gaming products\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.recommended_items).to.be.an('array');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{gamer_session_id}}\",\n    \"message\": \"התקציב שלי עד 7000 שקל\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "011 - אני מחפש מחשב לגיימינג",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "// Create a new session for gamer scenario",
+                      "const sessionId = 'gamer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);",
+                      "pm.collectionVariables.set(\"gamer_session_id\", sessionId);"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Customer type identified as Gamer\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.customer_type).to.include(\"Gamer\");",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"gamer-Non\",\n    \"message\": \"אני מחפש מחשב לגיימינג, צריך משהו שירוץ את Valorant וFortnite בהגדרות גבוהות\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "גיימר עם דרישות ברורות"
+              },
+              "response": []
+            },
+            {
+              "name": "012 - התקציב שלי עד 5000 שקל",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Recommended gaming products\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.recommended_items).to.be.an('array');",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"gamer-Non\",\n    \"message\": \"התקציב שלי עד 5000 שקל\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "013 - נייד גיימינג עד 5000",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Recommended gaming products\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.recommended_items).to.be.an('array');",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"gamer-Non\",\n    \"message\": \"נייד\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "תרחיש גיימר - צריך GPU חזק ומפרטים גבוהים"
+        },
+        {
+          "name": "03 - מהנדס תוכנה",
+          "item": [
+            {
+              "name": "01 - צריך מחשב לפיתוח תוכנה",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "const sessionId = 'engineer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);",
+                      "pm.collectionVariables.set(\"engineer_session_id\", sessionId);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Customer type identified as Engineer\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.customer_type).to.include(\"Engineer\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{engineer_session_id}}\",\n    \"message\": \"אני מפתח תוכנה וצריך מחשב לעבודה, אני עובד עם Docker, IDEs כבדים ומריץ הרבה VMs\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "02 - צריך לפחות 32GB RAM",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{engineer_session_id}}\",\n    \"message\": \"אני צריך לפחות 32GB RAM ומעבד חזק. תקציב עד 10000 שקל\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "תרחיש מהנדס - צריך RAM רב ומעבד חזק"
+        },
+        {
+          "name": "04 - בדיקות Edge Cases",
+          "item": [
+            {
+              "name": "שאלה לא קשורה - מה מזג האוויר?",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "const sessionId = 'offtopic_' + Date.now();",
+                      "pm.collectionVariables.set(\"offtopic_session_id\", sessionId);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Should redirect to computer topics\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    // The bot should politely redirect",
+                      "    pm.expect(jsonData.assistant_message).to.include.oneOf(['מחשב', 'עזור', 'מתמחה']);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{offtopic_session_id}}\",\n    \"message\": \"מה מזג האוויר היום?\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "בדיקת off-topic handling"
+              },
+              "response": []
+            },
+            {
+              "name": "תקציב נמוך מדי",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "const sessionId = 'lowbudget_' + Date.now();",
+                      "pm.collectionVariables.set(\"lowbudget_session_id\", sessionId);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{lowbudget_session_id}}\",\n    \"message\": \"אני צריך מחשב נייד לגיימינג, התקציב שלי 1000 שקל\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "בדיקת מצב של תקציב שלא מציאותי"
+              },
+              "response": []
+            },
+            {
+              "name": "בקשה עם פרטים חסרים",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "const sessionId = 'incomplete_' + Date.now();",
+                      "pm.collectionVariables.set(\"incomplete_session_id\", sessionId);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Should ask clarifying question\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    // Should end with a question mark",
+                      "    pm.expect(jsonData.assistant_message).to.match(/\\?$/);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{incomplete_session_id}}\",\n    \"message\": \"אני רוצה משהו טוב\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                },
+                "description": "בדיקת טיפול במידע לא מספיק מפורט"
+              },
+              "response": []
+            }
+          ],
+          "description": "בדיקות של מקרי קצה ומצבים חריגים"
+        },
+        {
+          "name": "05 - שיחה מלאה מ-A עד Z",
+          "item": [
+            {
+              "name": "01 - היי",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "const sessionId = 'full_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);",
+                      "pm.collectionVariables.set(\"full_session_id\", sessionId);",
+                      "console.log('Starting full conversation with session: ' + sessionId);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{full_session_id}}\",\n    \"message\": \"היי\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "02 - אני מחפש מחשב",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{full_session_id}}\",\n    \"message\": \"אני מחפש מחשב\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "03 - אני סטודנט",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{full_session_id}}\",\n    \"message\": \"אני סטודנט באוניברסיטה, צריך משהו לשיעורים ועבודות\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "04 - אני מעדיף נייד",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{full_session_id}}\",\n    \"message\": \"אני מעדיף מחשב נייד כי אני צריך לקחת אותו לקמפוס\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "05 - התקציב שלי 3500",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{full_session_id}}\",\n    \"message\": \"התקציב שלי בערך 3500 שקל\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "06 - האם יש באחריות?",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"session_id\": \"{{full_session_id}}\",\n    \"message\": \"המחשב שהמלצת נראה טוב! האם הוא בא עם אחריות?\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/conversation/message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "conversation",
+                    "message"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "שיחה שלמה מתחילה ועד סוף עם follow-up questions"
+        },
+        {
+          "name": "2.3 Gamer Message (New Session)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"session_id\": \"gamer-session-001\",\n    \"message\": \"I want a gaming laptop with RTX graphics for playing Fortnite and Valorant. Budget is 8000 ILS\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/conversation/message",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "conversation",
+                "message"
+              ]
+            },
+            "description": "Gamer looking for a gaming laptop.\n\n**Expected Behavior:**\n- customer_type: 'Gamer'\n- Should recommend laptops with dedicated GPU\n- Should filter by RTX graphics and budget\n\n**Test Points:**\n- ✅ Should identify as Gamer from keywords\n- ✅ Should recommend laptops with GPU specs\n- ✅ Price should be within budget"
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Engineer Message (New Session)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"session_id\": \"engineer-session-001\",\n    \"message\": \"I'm a software developer and I need a powerful laptop for coding and running Docker containers. I need at least 16GB RAM. Budget up to 6000 ILS\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/conversation/message",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "conversation",
+                "message"
+              ]
+            },
+            "description": "Software engineer looking for development laptop.\n\n**Expected Behavior:**\n- customer_type: 'Engineer'\n- Should recommend laptops with good CPU and RAM\n- Should filter by min 16GB RAM"
+          },
+          "response": []
+        },
+        {
+          "name": "2.7 Hebrew Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"session_id\": \"hebrew-session-001\",\n    \"message\": \"היי, אני סטודנט ומחפש לפטופ ללימודים. התקציב שלי הוא 4000 שקל\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/conversation/message",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "conversation",
+                "message"
+              ]
+            },
+            "description": "Test Hebrew language support.\n\n**Expected Behavior:**\n- Should understand Hebrew keywords\n- customer_type: 'Student'\n- Response should include recommendations"
+          },
+          "response": []
+        },
+        {
+          "name": "2.8 Validation Error - Empty Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"session_id\": \"error-session\",\n    \"message\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/conversation/message",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "conversation",
+                "message"
+              ]
+            },
+            "description": "Test validation - empty message.\n\n**Expected Response:**\n- Status: 422 Unprocessable Entity\n- Body should contain validation error message"
+          },
+          "response": []
+        },
+        {
+          "name": "2.9 Validation Error - Missing Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"message\": \"Hello\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/conversation/message",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "conversation",
+                "message"
+              ]
+            },
+            "description": "Test validation - missing session_id.\n\n**Expected Response:**\n- Status: 422 Unprocessable Entity\n- Error about missing session_id field"
+          },
+          "response": []
+        }
+      ],
+      "description": "Customer conversation and recommendation endpoints.\n\nTest these AFTER uploading products!"
+    },
+    {
+      "name": "3. Admin - Metrics",
+      "item": [
+        {
+          "name": "3.1 Get Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "metrics"
+              ]
+            },
+            "description": "Get system analytics and metrics.\n\n**Expected Response:**\n```json\n{\n  \"daily_consultations\": [\n    {\"date\": \"2025-01-24\", \"count\": 5}\n  ],\n  \"top_recommended_products\": [\n    {\n      \"product_name\": \"IdeaPad 3\",\n      \"brand\": \"Lenovo\",\n      \"recommendation_count\": 3\n    }\n  ],\n  \"customer_segmentation\": [\n    {\n      \"customer_type\": \"Student\",\n      \"count\": 10,\n      \"percentage\": 45.5\n    }\n  ]\n}\n```\n\n**Note:** Run some conversation tests first to generate data!"
+          },
+          "response": []
+        }
+      ],
+      "description": "Analytics and metrics endpoints"
+    },
+    {
+      "name": "4. Admin - Sessions",
+      "item": [
+        {
+          "name": "4.1 List All Sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/sessions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "sessions"
+              ]
+            },
+            "description": "List all sessions with default pagination.\n\n**Expected Response:**\n```json\n{\n  \"sessions\": [\n    {\n      \"session_id\": \"test-session-001\",\n      \"customer_type\": \"Student\",\n      \"started_at\": \"2025-01-24T10:00:00\",\n      \"message_count\": 4,\n      \"recommendation_count\": 1\n    }\n  ],\n  \"total\": 5,\n  \"page\": 1,\n  \"page_size\": 20,\n  \"total_pages\": 1\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Sessions - Page 2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/sessions?page=2&page_size=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "sessions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "2"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Test pagination - get page 2 with 10 items per page."
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Sessions - Search by Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/sessions?search=Student",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "sessions"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Student"
+                }
+              ]
+            },
+            "description": "Search sessions by customer type.\n\n**Expected Behavior:**\n- Only returns sessions where customer_type contains 'Student'"
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 Sessions - Search by Session ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/sessions?search=gamer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "sessions"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "gamer"
+                }
+              ]
+            },
+            "description": "Search sessions by session_id.\n\n**Expected Behavior:**\n- Returns sessions where session_id contains 'gamer'"
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 Get Session Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/sessions/{{session_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "sessions",
+                "{{session_id}}"
+              ]
+            },
+            "description": "Get detailed information for a specific session.\n\n**Expected Response:**\n```json\n{\n  \"session_id\": \"test-session-001\",\n  \"customer_type\": \"Student\",\n  \"started_at\": \"2025-01-24T10:00:00\",\n  \"ended_at\": null,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hi, I need a computer\",\n      \"timestamp\": \"2025-01-24T10:00:00\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"I'd be happy to help...\",\n      \"timestamp\": \"2025-01-24T10:00:05\"\n    }\n  ],\n  \"recommendations\": [\n    {\n      \"product_id\": 1,\n      \"product_name\": \"IdeaPad 3\",\n      \"product_price\": 2790,\n      ...\n    }\n  ]\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 Get Session Detail - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/sessions/non-existent-session",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "sessions",
+                "non-existent-session"
+              ]
+            },
+            "description": "Test 404 error for non-existent session.\n\n**Expected Response:**\n- Status: 404 Not Found\n- Body: {\"detail\": \"Session with ID 'non-existent-session' not found\"}"
+          },
+          "response": []
+        }
+      ],
+      "description": "Session browsing and search"
+    },
+    {
+      "name": "5. Admin - Get Products",
+      "item": [
+        {
+          "name": "5.1 Get Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "products"
+              ]
+            },
+            "description": "Get OpenAPI specification in JSON format.\n\nThis is what Swagger UI and ReDoc use to generate documentation."
+          },
+          "response": []
+        },
+        {
+          "name": "5.1 Get Limit Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/products?page=1&page_size=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get OpenAPI specification in JSON format.\n\nThis is what Swagger UI and ReDoc use to generate documentation."
+          },
+          "response": []
+        }
+      ],
+      "description": "Check auto-generated documentation"
+    },
+    {
+      "name": "6. Admin - Login",
+      "item": [
+        {
+          "name": "6.1 Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "test-session-001",
+      "type": "string"
+    },
+    {
+      "key": "offtopic_session_id",
+      "value": ""
+    },
+    {
+      "key": "lowbudget_session_id",
+      "value": ""
+    },
+    {
+      "key": "incomplete_session_id",
+      "value": ""
+    },
+    {
+      "key": "gamer_session_id",
+      "value": ""
+    },
+    {
+      "key": "full_session_id",
+      "value": ""
+    }
+  ]
+}
