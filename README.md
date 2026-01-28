@@ -103,6 +103,7 @@ Password: admin123
 Once logged in, you can:
 - 📊 View system metrics (sessions, recommendations, conversion rate)
 - 📈 Analyze daily consultations and customer segmentation
+- 🏆 Track top recommended products with recommendation counts
 - 🔍 Search and filter conversation sessions
 - 📤 Upload products from CSV files
 - 📋 View detailed session history
