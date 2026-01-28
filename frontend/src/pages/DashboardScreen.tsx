@@ -11,12 +11,14 @@ import SimpleLineChart from '../components/admin/SimpleLineChart';
 import SimplePieChart from '../components/admin/SimplePieChart';
 import SessionTable from '../components/admin/SessionTable';
 import FileUpload from '../components/admin/FileUpload';
+import TopProductsTable from '../components/admin/TopProductsTable';
 import {
   getDailyConsultations,
   getCustomerSegments,
+  getProductStats,
   getSessionHistory
 } from '../services/adminService';
-import type { SessionHistory } from '../types/admin.types';
+import type { SessionHistory, ProductStats } from '../types/admin.types';
 
 // Mock data for development (used as fallback if API fails)
 const mockDailyData = [
@@ -40,6 +42,7 @@ const mockCustomerTypes = [
 export default function DashboardScreen() {
   const [dailyData, setDailyData] = useState<any[]>(mockDailyData);
   const [customerData, setCustomerData] = useState<any[]>(mockCustomerTypes);
+  const [topProducts, setTopProducts] = useState<ProductStats[]>([]);
   const [sessions, setSessions] = useState<SessionHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,15 +55,17 @@ export default function DashboardScreen() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Load all data in parallel
       const [
         dailyConsultations,
         customerSegments,
+        productStats,
         sessionHistoryData
       ] = await Promise.all([
         getDailyConsultations().catch(() => []),
         getCustomerSegments().catch(() => []),
+        getProductStats().catch(() => []),
         getSessionHistory({
           page: 1,
           per_page: 20,
@@ -83,6 +88,11 @@ export default function DashboardScreen() {
           value: item.count,
         }));
         setCustomerData(transformed);
+      }
+
+      // Set top products
+      if (productStats && productStats.length > 0) {
+        setTopProducts(productStats);
       }
 
       // Set sessions
@@ -155,6 +165,11 @@ export default function DashboardScreen() {
             data={customerData}
             title="התפלגות סוגי לקוחות"
           />
+        </div>
+
+        {/* Top Products Section */}
+        <div className="mb-8">
+          <TopProductsTable products={topProducts} isLoading={isLoading} />
         </div>
 
         {/* File Upload Section */}
