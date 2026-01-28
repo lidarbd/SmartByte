@@ -177,6 +177,7 @@ class RecommendationService:
                 max_budget=extracted_info.get('budget_amount'),
                 product_type=extracted_info.get('product_type'),
                 category=extracted_info.get('category'),
+                brand=extracted_info.get('brand'),
                 limit=5
             )
             
@@ -198,7 +199,8 @@ class RecommendationService:
             main_product = products[0]
             upsell_product = self.upsell_selector.select_upsell(
                 main_product=main_product,
-                customer_type=customer_type.value
+                customer_type=customer_type.value,
+                conversation_history=history
             )
             
             # Step 10: Generate recommendation response with strong guardrails

@@ -182,16 +182,16 @@ class ConversationFlowManager:
             'זיכרון', 'מעבד', 'כרטיס מסך',
 
             # Use cases
-            'gaming', 'work', 'study', 'office', 'development',
-            'גיימינג', 'עבודה', 'לימודים', 'משרד', 'פיתוח',
+            'gaming', 'work', 'study', 'office', 'development', 'music', 'entertainment',
+            'גיימינג', 'עבודה', 'לימודים', 'משרד', 'פיתוח', 'מוזיקה', 'בידור',
 
             # Price/budget
             'price', 'cost', 'budget', 'cheap', 'expensive',
             'מחיר', 'תקציב', 'זול', 'יקר',
 
             # Accessories
-            'mouse', 'keyboard', 'monitor', 'headset', 'bag',
-            'עכבר', 'מקלדת', 'מסך', 'אוזניות', 'תיק'
+            'mouse', 'keyboard', 'monitor', 'headset', 'bag', 'headphones',
+            'עכבר', 'מקלדת', 'מסך', 'אוזניות', 'תיק', 'אזניות'
         ]
 
         # Check ONLY the current message to detect topic changes
@@ -252,7 +252,8 @@ class ConversationFlowManager:
         currency = r'(?:₪|שח|ש"ח|ש״ח|שקל|shekel|nis|ils)'
         # IMPORTANT: Try longer numbers first to avoid matching only part of a number
         # For example, "5000" should match as 5000, not as 500
-        num = r'(\d{4,6}|\d{1,3}(?:[,\.\s]\d{3})+)'  # Matches 1000-999999 or formatted numbers like 5,000
+        # Support both large numbers (1000+) and smaller amounts (50-999) for accessories
+        num = r'(\d{4,6}|\d{1,3}(?:[,\.\s]\d{3})+|\d{2,3})'  # Matches 50-999999 or formatted numbers
 
         # Extract budget using regex
         budget_patterns = [
@@ -262,6 +263,8 @@ class ConversationFlowManager:
             rf'סביב(?:ות|)s*\s*{num}',
             rf'מקס(?:ימום|)\s*{num}',
             rf'{num}\s*{currency}',
+            rf'{num}\s*ומעלה',  # Support "200 ומעלה" pattern
+            rf'{num}\s*שקל',
         ]
 
         for pattern in budget_patterns:
@@ -270,23 +273,37 @@ class ConversationFlowManager:
                 raw = match.group(1)
                 budget_str = raw.replace(',', '').replace('.', '').replace(' ', '')
                 try:
-                    info['budget_amount'] = float(budget_str)
+                    budget_value = float(budget_str)
+                    info['budget_amount'] = budget_value
                     info['has_budget'] = True
+
+                    # Check if this is a minimum budget (e.g., "200 ומעלה" / "200 and up")
+                    if 'ומעלה' in text or 'and up' in text.lower() or 'minimum' in text.lower():
+                        # For minimum budget, set a high max so we show expensive items
+                        # Set max to 10x the minimum or 10000, whichever is higher
+                        info['budget_amount'] = max(budget_value * 10, 10000)
+                        info['is_minimum_budget'] = True
+                        print(f"Detected minimum budget: {budget_value}+ (setting max to {info['budget_amount']})")
+
                     break
                 except ValueError:
                     pass
 
         # If we found numbers but no explicit budget, check if it's a reasonable budget number
         if not info['has_budget']:
-            numbers = re.findall(r'\b(\d{4,6})\b', text)  # 4-6 digit numbers
+            numbers = re.findall(r'\b(\d{2,6})\b', text)  # 2-6 digit numbers
             if numbers:
-                # Assume it's a budget if it's in reasonable range (1000-50000 ILS)
-                for num in numbers:
-                    num_val = int(num)
-                    if 1000 <= num_val <= 50000:
-                        info['budget_amount'] = float(num_val)
-                        info['has_budget'] = True
-                        break
+                # Assume it's a budget if in reasonable range (50-50000 ILS)
+                # Skip if it's clearly a tech spec (RAM, storage)
+                is_tech_spec = any(keyword in text.lower() for keyword in
+                                  ['gb', 'ram', 'ראם', 'גיגה', 'tb', 'ssd', 'hdd'])
+                if not is_tech_spec:
+                    for num in numbers:
+                        num_val = int(num)
+                        if 50 <= num_val <= 50000:
+                            info['budget_amount'] = float(num_val)
+                            info['has_budget'] = True
+                            break
 
         # Extract product type preference
         if any(k in text for k in ['laptop', 'notebook', 'portable', 'נייד', 'לפטופ', 'מחשב נייד']):
@@ -304,6 +321,23 @@ class ConversationFlowManager:
         if any(k in text for k in computer_keywords):
             info['has_category'] = True
             info['category'] = 'computer'
+
+        # Extract accessory category
+        if any(k in text for k in ['headset', 'headphones', 'אוזניות', 'אזניות']):
+            info['has_category'] = True
+            info['category'] = 'headset'
+        elif any(k in text for k in ['mouse', 'עכבר']):
+            info['has_category'] = True
+            info['category'] = 'mouse'
+        elif any(k in text for k in ['keyboard', 'מקלדת']):
+            info['has_category'] = True
+            info['category'] = 'keyboard'
+        elif any(k in text for k in ['monitor', 'screen', 'מסך', 'צג']):
+            info['has_category'] = True
+            info['category'] = 'monitor'
+        elif any(k in text for k in ['bag', 'backpack', 'תיק', 'תרמיל']):
+            info['has_category'] = True
+            info['category'] = 'bag'
 
         # Extract brand preference
         if any(k in text for k in ['lenovo', 'לנובו']):
@@ -341,15 +375,34 @@ class ConversationFlowManager:
         """
         Identify what critical information is still missing.
 
-        We need at least:
+        For computers, we need:
         1. Use case (what will they use it for?)
         2. Budget (how much can they spend?)
         3. Product type preference (laptop or desktop?)
 
-        Without these, we can't make a good recommendation.
+        For accessories, we need:
+        1. Use case (gaming, music, work?) - helps filter appropriate accessories
+        2. Budget (price range varies significantly) - helps filter by price
+        We DON'T need product_type since they're not buying a computer.
         """
         missing = []
 
+        # Check if this is an accessory-only request
+        category = extracted_info.get('category')
+        is_accessory_only = category in ['mouse', 'keyboard', 'headset', 'bag', 'monitor']
+
+        if is_accessory_only:
+            # For accessories, we still need budget and use_case to filter properly
+            # but we don't need product_type
+            if not extracted_info['has_use_case']:
+                missing.append('use_case')
+
+            if not extracted_info['has_budget']:
+                missing.append('budget')
+
+            return missing
+
+        # For computers, we need all the info
         if not extracted_info['has_use_case']:
             missing.append('use_case')
 
@@ -417,13 +470,36 @@ class ConversationFlowManager:
         2. Product type (laptop vs desktop - affects everything)
         3. Budget (helps us filter appropriately)
         """
+        # Check if this is an accessory-only request
+        category = extracted_info.get('category')
+        is_accessory_only = category in ['mouse', 'keyboard', 'headset', 'bag', 'monitor']
+
         # Priority 1: Understand the use case
         if 'use_case' in missing_info:
-            return ("אשמח לעזור לך למצוא את המחשב המושלם! "
-               "כדי לתת לך את ההמלצה הטובה ביותר, תוכל לספר לי למה בעיקר תשתמש במחשב? "
-               "לדוגמה: לימודים, עבודה, גיימינג, או שימוש כללי בבית.")
+            if is_accessory_only:
+                # Customize question based on accessory type
+                if category == 'headset':
+                    return ("אשמח לעזור לך למצוא את האוזניות המושלמות! "
+                           "למה בעיקר תשתמש באוזניות? לדוגמה: גיימינג, האזנה למוזיקה, שיחות עבודה, או שימוש כללי.")
+                elif category == 'mouse':
+                    return ("אשמח לעזור לך למצוא את העכבר המושלם! "
+                           "למה בעיקר תשתמש בעכבר? לדוגמה: גיימינג, עבודה משרדית, עיצוב גרפי, או שימוש כללי.")
+                elif category == 'keyboard':
+                    return ("אשמח לעזור לך למצוא את המקלדת המושלמת! "
+                           "למה בעיקר תשתמש במקלדת? לדוגמה: גיימינג, תכנות, כתיבה, או שימוש כללי.")
+                elif category == 'monitor':
+                    return ("אשמח לעזור לך למצוא את המסך המושלם! "
+                           "למה בעיקר תשתמש במסך? לדוגמה: גיימינג, עיצוב גרפי, עבודה משרדית, או שימוש כללי.")
+                elif category == 'bag':
+                    return ("אשמח לעזור לך למצוא את התיק המושלם! "
+                           "למה בעיקר תשתמש בתיק? לדוגמה: נסיעות, לימודים, עבודה, או שימוש יומיומי.")
+            else:
+                # Computer question
+                return ("אשמח לעזור לך למצוא את המחשב המושלם! "
+                       "כדי לתת לך את ההמלצה הטובה ביותר, תוכל לספר לי למה בעיקר תשתמש במחשב? "
+                       "לדוגמה: לימודים, עבודה, גיימינג, או שימוש כללי בבית.")
 
-        # Priority 2: Get product type preference
+        # Priority 2: Get product type preference (only for computers)
         if 'product_type' in missing_info:
             # Tailor the question based on use case if we know it
             if extracted_info['use_case_keywords']:
@@ -439,7 +515,24 @@ class ConversationFlowManager:
 
         # Priority 3: Get budget
         if 'budget' in missing_info:
-            return "מה טווח התקציב שלך לרכישה? זה יעזור לי להראות לך את האפשרויות הטובות ביותר הזמינות."
+            if is_accessory_only:
+                return f"מה טווח התקציב שלך ל{self._get_accessory_name_hebrew(category)}? זה יעזור לי להראות לך את האפשרויות הטובות ביותר."
+            else:
+                return "מה טווח התקציב שלך לרכישה? זה יעזור לי להראות לך את האפשרויות הטובות ביותר הזמינות."
 
         # If we somehow get here (shouldn't happen), ask a general question
-        return "האם יש משהו ספציפי שאתה מחפש במחשב? תכונות או דרישות מיוחדות?"
+        if is_accessory_only:
+            return f"האם יש משהו ספציפי שאתה מחפש ב{self._get_accessory_name_hebrew(category)}? תכונות או דרישות מיוחדות?"
+        else:
+            return "האם יש משהו ספציפי שאתה מחפש במחשב? תכונות או דרישות מיוחדות?"
+
+    def _get_accessory_name_hebrew(self, category: Optional[str]) -> str:
+        """Get Hebrew name for accessory category."""
+        names = {
+            'headset': 'אוזניות',
+            'mouse': 'עכבר',
+            'keyboard': 'מקלדת',
+            'monitor': 'מסך',
+            'bag': 'תיק'
+        }
+        return names.get(category, 'מוצר')

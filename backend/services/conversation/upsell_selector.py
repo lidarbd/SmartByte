@@ -30,33 +30,52 @@ class UpsellSelector:
         self,
         main_product: Product,
         customer_type: str,
+        conversation_history: Optional[List] = None,
         max_upsell_price: float = 300
     ) -> Optional[Product]:
         """
         Select an appropriate accessory for upselling.
-        
+
         Args:
             main_product: The main product being recommended
             customer_type: Type of customer
+            conversation_history: Full conversation history to detect explicit accessory requests
             max_upsell_price: Maximum price for upsell item
-        
+
         Returns:
             Accessory Product or None if no suitable upsell found
-        
+
         Example:
             selector = UpsellSelector(db)
             upsell = selector.select_upsell(
                 main_product=laptop,
                 customer_type="Student",
+                conversation_history=[
+                    {"role": "user", "content": "I need a laptop and headphones"}
+                ],
                 max_upsell_price=200
             )
         """
-        # Determine preferred accessory category
+        # First priority: Check if user explicitly requested an accessory
+        if conversation_history:
+            explicit_category = self._detect_explicit_accessory_request(conversation_history)
+            if explicit_category:
+                print(f"User explicitly requested {explicit_category} accessory")
+                accessories = self.repo.filter_products(
+                    product_type='accessory',
+                    category=explicit_category,
+                    max_price=max_upsell_price,
+                    min_stock=1
+                )
+                if accessories:
+                    return accessories[0]
+
+        # Second priority: Determine preferred accessory category based on product/customer type
         preferred_categories = self._get_preferred_categories(
             main_product,
             customer_type
         )
-        
+
         # Find accessories in preferred categories
         for category in preferred_categories:
             accessories = self.repo.filter_products(
@@ -65,20 +84,51 @@ class UpsellSelector:
                 max_price=max_upsell_price,
                 min_stock=1
             )
-            
+
             if accessories:
                 # Return the first match (already sorted by price)
                 return accessories[0]
-        
+
         # If no specific match, try any accessory
         generic_accessories = self.repo.filter_products(
             product_type='accessory',
             max_price=max_upsell_price,
             min_stock=1
         )
-        
+
         return generic_accessories[0] if generic_accessories else None
     
+    def _detect_explicit_accessory_request(self, conversation_history: List) -> Optional[str]:
+        """
+        Detect if user explicitly requested a specific accessory category in any message.
+
+        Args:
+            conversation_history: List of conversation messages with 'role' and 'content'
+
+        Returns:
+            Accessory category if detected, None otherwise
+        """
+        # Accessory keywords mapping
+        accessory_keywords = {
+            'headset': ['headset', 'headphones', 'earphones', 'אוזניות', 'אזניות'],
+            'mouse': ['mouse', 'עכבר', 'עכברים'],
+            'keyboard': ['keyboard', 'מקלדת'],
+            'monitor': ['monitor', 'screen', 'display', 'מסך', 'צג'],
+            'bag': ['bag', 'backpack', 'תיק', 'תרמיל']
+        }
+
+        # Check all user messages in conversation history
+        for message in conversation_history:
+            if message.get('role') == 'user':
+                message_lower = message.get('content', '').lower()
+
+                # Check each category
+                for category, keywords in accessory_keywords.items():
+                    if any(keyword in message_lower for keyword in keywords):
+                        return category
+
+        return None
+
     def _get_preferred_categories(
         self,
         main_product: Product,
@@ -88,13 +138,13 @@ class UpsellSelector:
         Determine which accessory categories are most relevant.
         """
         categories = []
-        
+
         # Based on main product type
         if main_product.product_type == 'laptop':
             categories.extend(['mouse', 'bag', 'headset'])
         elif main_product.product_type == 'desktop':
             categories.extend(['keyboard', 'mouse', 'headset'])
-        
+
         # Based on customer type
         if customer_type == 'Gamer':
             # Prefer gaming accessories
@@ -104,5 +154,5 @@ class UpsellSelector:
             # Prefer budget-friendly accessories
             categories.insert(0, 'mouse')  # Basic mouse is useful
             categories.insert(1, 'bag')    # Bag for portability
-        
+
         return categories

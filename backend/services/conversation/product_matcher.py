@@ -35,6 +35,7 @@ class ProductMatcher:
         max_budget: Optional[float] = None,
         product_type: Optional[str] = None,
         category: Optional[str] = None,
+        brand: Optional[str] = None,
         limit: int = 10
     ) -> List[Product]:
         """
@@ -46,6 +47,7 @@ class ProductMatcher:
             max_budget: Maximum price (extracted from message or conversation)
             product_type: Product type preference from conversation history (laptop/desktop)
             category: Product category from conversation history (computer/mouse/keyboard/etc)
+            brand: Brand preference from conversation history (Dell, Lenovo, HP, ASUS, etc)
             limit: Maximum number of products to return
 
         Returns:
@@ -89,6 +91,11 @@ class ProductMatcher:
         # Add product type filter if specified
         if product_type:
             filters['product_type'] = product_type
+
+        # Add brand filter if specified
+        if brand:
+            filters['brand'] = brand
+            print(f"Brand from conversation history: {brand}")
 
         print(f"FILTERS: {filters}")
 
