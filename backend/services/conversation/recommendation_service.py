@@ -313,7 +313,7 @@ class RecommendationService:
         messages.append({"role": "user", "content": user_message})
 
         try:
-            response = self.llm.generate_with_context(messages, temperature=0.7, max_tokens=150)
+            response = self.llm.generate_with_context(messages, temperature=0.7, max_tokens=500)
             return response
         except LLMProviderError:
             # Fallback to simple question in Hebrew
@@ -463,7 +463,7 @@ class RecommendationService:
             response = self.llm.generate_with_context(
                 messages,
                 temperature=0.6,
-                max_tokens=250
+                max_tokens=600
             )
 
             response = self._validate_response(response, main_product)
