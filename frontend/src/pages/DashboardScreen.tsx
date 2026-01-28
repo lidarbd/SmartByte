@@ -44,12 +44,14 @@ export default function DashboardScreen() {
   const [customerData, setCustomerData] = useState<any[]>(mockCustomerTypes);
   const [topProducts, setTopProducts] = useState<ProductStats[]>([]);
   const [sessions, setSessions] = useState<SessionHistory[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentPage]); // Reload when page changes
 
   const loadData = async () => {
     try {
@@ -67,9 +69,9 @@ export default function DashboardScreen() {
         getCustomerSegments().catch(() => []),
         getProductStats().catch(() => []),
         getSessionHistory({
-          page: 1,
+          page: currentPage,
           per_page: 20,
-        }).catch(() => ({ sessions: [], total: 0, page: 1, per_page: 20, total_pages: 0 })),
+        }).catch(() => ({ sessions: [], total: 0, page: currentPage, per_page: 20, total_pages: 0 })),
       ]);
 
       // Transform and set daily data
@@ -95,9 +97,10 @@ export default function DashboardScreen() {
         setTopProducts(productStats);
       }
 
-      // Set sessions
+      // Set sessions and pagination
       if (sessionHistoryData && sessionHistoryData.sessions) {
         setSessions(sessionHistoryData.sessions);
+        setTotalPages(sessionHistoryData.total_pages || 1);
       }
 
     } catch (err) {
@@ -181,6 +184,9 @@ export default function DashboardScreen() {
         <SessionTable
           sessions={sessions}
           isLoading={isLoading}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
         />
       </div>
     </div>

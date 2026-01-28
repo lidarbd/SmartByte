@@ -13,9 +13,18 @@ import type { SessionHistory } from '../../types/admin.types';
 interface SessionTableProps {
   sessions: SessionHistory[];
   isLoading?: boolean;
+  currentPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
-export default function SessionTable({ sessions, isLoading }: SessionTableProps) {
+export default function SessionTable({
+  sessions,
+  isLoading,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange
+}: SessionTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -133,9 +142,68 @@ export default function SessionTable({ sessions, isLoading }: SessionTableProps)
         )}
       </div>
 
-      {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-200 text-sm text-gray-600">
-        מציג {filteredSessions.length} מתוך {sessions.length} שיחות
+      {/* Footer with Pagination */}
+      <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+        <div className="text-sm text-gray-600">
+          מציג {filteredSessions.length} מתוך {sessions.length} שיחות
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && onPageChange && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              ←
+            </button>
+
+            <div className="flex gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                // Show first page, last page, current page, and pages around current
+                const showPage =
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1);
+
+                if (!showPage) {
+                  // Show ellipsis
+                  if (page === currentPage - 2 || page === currentPage + 2) {
+                    return (
+                      <span key={page} className="px-2 text-gray-400">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={page}
+                    onClick={() => onPageChange(page)}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      page === currentPage
+                        ? 'bg-indigo-600 text-white'
+                        : 'border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Session Details Modal */}
