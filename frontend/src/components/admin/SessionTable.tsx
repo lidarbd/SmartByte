@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { formatDate } from '../../utils/formatters';
 import Input from '../common/Input';
+import SessionDetailsModal from './SessionDetailsModal';
 import type { SessionHistory } from '../../types/admin.types';
 
 interface SessionTableProps {
@@ -17,6 +18,7 @@ interface SessionTableProps {
 export default function SessionTable({ sessions, isLoading }: SessionTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Filter sessions based on search and type
   const filteredSessions = sessions.filter((session) => {
@@ -98,7 +100,11 @@ export default function SessionTable({ sessions, isLoading }: SessionTableProps)
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredSessions.map((session) => (
-                <tr key={session.session_id} className="hover:bg-gray-50">
+                <tr
+                  key={session.session_id}
+                  className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => setSelectedSessionId(session.session_id)}
+                >
                   <td className="px-6 py-4 text-sm text-gray-900 font-mono">
                     {session.session_id.substring(0, 20)}...
                   </td>
@@ -131,6 +137,14 @@ export default function SessionTable({ sessions, isLoading }: SessionTableProps)
       <div className="px-6 py-4 border-t border-gray-200 text-sm text-gray-600">
         מציג {filteredSessions.length} מתוך {sessions.length} שיחות
       </div>
+
+      {/* Session Details Modal */}
+      {selectedSessionId && (
+        <SessionDetailsModal
+          sessionId={selectedSessionId}
+          onClose={() => setSelectedSessionId(null)}
+        />
+      )}
     </div>
   );
 }
