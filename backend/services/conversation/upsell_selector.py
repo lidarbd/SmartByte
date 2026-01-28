@@ -31,7 +31,8 @@ class UpsellSelector:
         main_product: Product,
         customer_type: str,
         conversation_history: Optional[List] = None,
-        max_upsell_price: float = 300
+        max_upsell_price: float = 300,
+        requested_accessory: Optional[str] = None
     ) -> Optional[Product]:
         """
         Select an appropriate accessory for upselling.
@@ -41,6 +42,7 @@ class UpsellSelector:
             customer_type: Type of customer
             conversation_history: Full conversation history to detect explicit accessory requests
             max_upsell_price: Maximum price for upsell item
+            requested_accessory: Explicitly requested accessory category (e.g., 'headset', 'mouse')
 
         Returns:
             Accessory Product or None if no suitable upsell found
@@ -50,17 +52,29 @@ class UpsellSelector:
             upsell = selector.select_upsell(
                 main_product=laptop,
                 customer_type="Student",
-                conversation_history=[
-                    {"role": "user", "content": "I need a laptop and headphones"}
-                ],
-                max_upsell_price=200
+                requested_accessory="headset",
+                max_upsell_price=1500
             )
         """
-        # First priority: Check if user explicitly requested an accessory
+        # Highest priority: Use explicitly requested accessory if provided
+        if requested_accessory:
+            print(f"User explicitly requested {requested_accessory} accessory (budget: {max_upsell_price})")
+            accessories = self.repo.filter_products(
+                product_type='accessory',
+                category=requested_accessory,
+                max_price=max_upsell_price,
+                min_stock=1
+            )
+            if accessories:
+                return accessories[0]
+            else:
+                print(f"No {requested_accessory} found within budget {max_upsell_price}")
+
+        # Second priority: Check conversation history for implicit requests
         if conversation_history:
             explicit_category = self._detect_explicit_accessory_request(conversation_history)
             if explicit_category:
-                print(f"User explicitly requested {explicit_category} accessory")
+                print(f"Detected {explicit_category} accessory from conversation")
                 accessories = self.repo.filter_products(
                     product_type='accessory',
                     category=explicit_category,
@@ -70,7 +84,7 @@ class UpsellSelector:
                 if accessories:
                     return accessories[0]
 
-        # Second priority: Determine preferred accessory category based on product/customer type
+        # Third priority: Determine preferred accessory category based on product/customer type
         preferred_categories = self._get_preferred_categories(
             main_product,
             customer_type

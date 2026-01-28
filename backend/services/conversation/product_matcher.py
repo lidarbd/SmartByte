@@ -102,10 +102,21 @@ class ProductMatcher:
         # Query database with filters
         products = self.repo.filter_products(**filters)
         print(f"Found {len(products)} products")
-        # Additional filtering based on specs (for computers)
-        if customer_type in ['Engineer', 'Gamer']:
+
+        # Additional filtering based on specs (ONLY for computers, not accessories)
+        # Define accessory categories that should skip spec filtering
+        accessory_categories = ['headset', 'mouse', 'keyboard', 'monitor', 'bag']
+        is_accessory_search = category in accessory_categories
+
+        if customer_type in ['Engineer', 'Gamer'] and not is_accessory_search:
+            # Only apply spec filtering if we're looking for computers
+            # Don't filter accessories (headset, mouse, keyboard, etc.)
+            print(f"Applying spec filter (not an accessory search)")
             products = self._filter_by_specs(products, customer_type, message)
             print(f"After specs: {len(products)} products")
+        else:
+            if is_accessory_search:
+                print(f"Skipping spec filter (accessory search: {category})")
 
         # Return top matches (limit)
         result = products[:limit]

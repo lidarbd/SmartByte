@@ -86,14 +86,18 @@ class ProductRepository:
             filter_products(product_type="desktop", min_ram=16, category="computer")
         """
         query = self.db.query(Product)
-        
+
+        print(f"[ProductRepository] Filtering with: product_type={product_type}, category={category}, brand={brand}, max_price={max_price}, min_stock={min_stock}")
+
         # Filter by product type
         if product_type:
             query = query.filter(Product.product_type == product_type)
-        
+            print(f"[ProductRepository] Added product_type filter: {product_type}")
+
         # Filter by category
         if category:
             query = query.filter(Product.category == category)
+            print(f"[ProductRepository] Added category filter: {category}")
         
         # Filter by brand
         if brand:
@@ -110,7 +114,10 @@ class ProductRepository:
         
         # Get results
         results = query.all()
-        
+        print(f"[ProductRepository] Found {len(results)} products after DB query")
+        if results and len(results) > 0:
+            print(f"[ProductRepository] First result: {results[0].name} | Category: {results[0].category} | Price: {results[0].price}")
+
         # Additional filtering based on specs (for computers)
         if min_ram or min_storage:
             filtered_results = []

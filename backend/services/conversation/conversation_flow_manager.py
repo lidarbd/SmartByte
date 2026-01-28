@@ -318,26 +318,33 @@ class ConversationFlowManager:
             'computer', 'computers', 'pc',  # English
             'מחשב', 'מחשבים', 'קומפיוטר'  # Hebrew
         ]
-        if any(k in text for k in computer_keywords):
-            info['has_category'] = True
-            info['category'] = 'computer'
+        has_computer_request = any(k in text for k in computer_keywords)
 
         # Extract accessory category
+        detected_accessory = None
         if any(k in text for k in ['headset', 'headphones', 'אוזניות', 'אזניות']):
-            info['has_category'] = True
-            info['category'] = 'headset'
+            detected_accessory = 'headset'
         elif any(k in text for k in ['mouse', 'עכבר']):
-            info['has_category'] = True
-            info['category'] = 'mouse'
+            detected_accessory = 'mouse'
         elif any(k in text for k in ['keyboard', 'מקלדת']):
-            info['has_category'] = True
-            info['category'] = 'keyboard'
+            detected_accessory = 'keyboard'
         elif any(k in text for k in ['monitor', 'screen', 'מסך', 'צג']):
-            info['has_category'] = True
-            info['category'] = 'monitor'
+            detected_accessory = 'monitor'
         elif any(k in text for k in ['bag', 'backpack', 'תיק', 'תרמיל']):
+            detected_accessory = 'bag'
+
+        # Priority: If user wants computer, that's the main product
+        # Any accessory they mention will be offered as upsell
+        if has_computer_request:
             info['has_category'] = True
-            info['category'] = 'bag'
+            info['category'] = 'computer'
+            if detected_accessory:
+                info['requested_accessory'] = detected_accessory
+                print(f"Detected combined request: computer + {detected_accessory} as upsell")
+        elif detected_accessory:
+            # Only accessory (no computer)
+            info['has_category'] = True
+            info['category'] = detected_accessory
 
         # Extract brand preference
         if any(k in text for k in ['lenovo', 'לנובו']):
