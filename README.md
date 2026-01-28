@@ -95,7 +95,7 @@ http://localhost:5173/admin/login
 ### 2. Login Credentials
 
 ```
-Password: admin123  (change in production!)
+Password: admin123  
 ```
 
 ### 3. Dashboard Features
