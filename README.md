@@ -2,6 +2,8 @@
 
 SmartByte is an intelligent chatbot that helps customers find the perfect computer by analyzing their needs and recommending products from your inventory.
 
+Built by Lidar Ben-Dor — [My Site](https://lidarbd.github.io/MySite/)
+
 ## 🎯 Key Features
 
 - **Intelligent Recommendations**: AI-powered product matching based on customer type (Student, Engineer, Gamer, Business)
